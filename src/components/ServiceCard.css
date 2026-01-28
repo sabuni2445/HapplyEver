@@ -1,0 +1,138 @@
+.service-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.service-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.service-card-image {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
+
+.service-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.service-status-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: #d1fae5;
+  color: #065f46;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.service-card-content {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.service-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.service-card-header h3 {
+  font-family: "Playfair Display", serif;
+  font-size: 1.5rem;
+  color: #523c2b;
+  margin: 0;
+  flex: 1;
+}
+
+.service-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #d4af37;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.rating-count {
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.service-category {
+  color: #7a5d4e;
+  font-size: 0.9rem;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.service-description {
+  color: #6b7280;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0;
+  flex: 1;
+}
+
+.service-price {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #d4af37;
+  margin-top: 0.5rem;
+}
+
+.service-price span {
+  font-size: 0.9rem;
+  color: #7a5d4e;
+  font-weight: 400;
+}
+
+.service-view-btn {
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #d4af37, #b89627);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.service-view-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+}
+
+@media (max-width: 768px) {
+  .service-card-header {
+    flex-direction: column;
+  }
+}
+
+
+
+
+
+
+
+
+

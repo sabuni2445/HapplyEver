@@ -1,0 +1,37 @@
+      </div>
+
+      {/* Set Password Modal */}
+      {showSetPasswordModal && selectedUserForPassword && (
+        <div className="modal-overlay" onClick={() => setShowSetPasswordModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>Set Password for {selectedUserForPassword.firstName} {selectedUserForPassword.lastName}</h2>
+            <form onSubmit={handleSubmitPassword}>
+              <div className="form-group">
+                <label>Password (minimum 6 characters) *</label>
+                <input
+                  type="password"
+                  value={passwordValue}
+                  onChange={(e) => setPasswordValue(e.target.value)}
+                  required
+                  minLength={6}
+                  placeholder="Enter password"
+                />
+              </div>
+              <div className="form-actions">
+                <button type="submit" className="btn-primary">Set Password</button>
+                <button type="button" onClick={() => setShowSetPasswordModal(false)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create User Modal */}
+
+
+
+
+
+
+
+

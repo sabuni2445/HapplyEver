@@ -1,0 +1,37 @@
+.vendor-service-modal {
+  max-width: 900px;
+}
+
+.bookings-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.bookings-section h3 {
+  font-family: "Playfair Display", serif;
+  color: #523c2b;
+  margin-bottom: 1rem;
+}
+
+.booking-item {
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  border-left: 3px solid #d4af37;
+}
+
+.booking-item strong {
+  color: #523c2b;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+
+
+
+
+
+
+
+

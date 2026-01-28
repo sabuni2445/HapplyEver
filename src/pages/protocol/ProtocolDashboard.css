@@ -1,0 +1,261 @@
+.protocol-dashboard {
+  display: flex;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #fdf6f0 0%, #fff9f3 100%);
+}
+
+.protocol-dashboard .dashboard-content {
+  flex: 1;
+  padding: 2rem;
+  margin-left: 280px;
+}
+
+.protocol-dashboard .content-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.protocol-dashboard .page-title {
+  font-family: "Playfair Display", serif;
+  font-size: 2.5rem;
+  color: #523c2b;
+  margin-bottom: 0.5rem;
+}
+
+.protocol-dashboard .page-subtitle {
+  color: #6b7280;
+  margin-bottom: 2rem;
+}
+
+.protocol-dashboard .section-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+.protocol-dashboard .section-card h2 {
+  font-family: "Playfair Display", serif;
+  color: #523c2b;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.scanner-section {
+  border: 2px solid #d4af37;
+}
+
+.scanner-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.code-input-section {
+  width: 100%;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+}
+
+.code-input {
+  flex: 1;
+  padding: 1rem;
+  border: none;
+  background: white;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-family: monospace;
+}
+
+.code-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+}
+
+.guest-verification-result {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  padding: 2rem;
+  border-radius: 12px;
+  border: 2px solid #10b981;
+}
+
+.verification-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.verification-header h3 {
+  font-family: "Playfair Display", serif;
+  color: #065f46;
+  margin: 0;
+}
+
+.guest-info {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.guest-info p {
+  margin: 0.75rem 0;
+  color: #523c2b;
+}
+
+.qr-display {
+  text-align: center;
+  margin: 1.5rem 0;
+}
+
+.qr-display img {
+  width: 200px;
+  height: 200px;
+  border: 4px solid #10b981;
+  border-radius: 12px;
+  padding: 1rem;
+  background: white;
+}
+
+.btn-success {
+  width: 100%;
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.btn-success:hover {
+  background: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.weddings-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.wedding-card {
+  background: #f9fafb;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.wedding-card:hover {
+  border-color: #7c3aed;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+}
+
+.wedding-card.selected {
+  border-color: #7c3aed;
+  background: #f3e8ff;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.wedding-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.wedding-card-header h3 {
+  font-family: "Playfair Display", serif;
+  color: #523c2b;
+  margin: 0;
+}
+
+.status-active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.wedding-card-details p {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  margin: 0.5rem 0;
+}
+
+.guests-table {
+  overflow-x: auto;
+}
+
+.guests-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.guests-table th,
+.guests-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.guests-table th {
+  background: #f9fafb;
+  font-weight: 600;
+  color: #523c2b;
+}
+
+.guests-table code {
+  background: #f3f4f6;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: monospace;
+  color: #7c3aed;
+  font-weight: 600;
+}
+
+.status-confirmed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-declined {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+
+
+
+
+
+
+
+

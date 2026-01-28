@@ -1,0 +1,111 @@
+.protocol-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 280px;
+  height: 100vh;
+  background: linear-gradient(180deg, #7c3aed 0%, #6d28d9 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.protocol-sidebar .sidebar-header {
+  padding: 2rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.protocol-sidebar .sidebar-header h2 {
+  font-family: "Playfair Display", serif;
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: white !important;
+}
+
+.protocol-sidebar .role-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: rgba(196, 181, 253, 0.2);
+  border: 1px solid #c4b5fd;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #c4b5fd;
+}
+
+.protocol-sidebar .sidebar-nav {
+  flex: 1;
+  padding: 1rem 0;
+  overflow-y: auto;
+}
+
+.protocol-sidebar .nav-item {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.9) !important;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  text-align: left;
+}
+
+.protocol-sidebar .nav-item svg {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.protocol-sidebar .nav-item span {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.protocol-sidebar .nav-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.protocol-sidebar .nav-item.active {
+  background: rgba(196, 181, 253, 0.2);
+  color: #c4b5fd !important;
+  border-left: 3px solid #c4b5fd;
+}
+
+.protocol-sidebar .nav-item.active svg {
+  color: #c4b5fd !important;
+}
+
+.protocol-sidebar .nav-item.active span {
+  color: #c4b5fd !important;
+}
+
+.protocol-sidebar .sidebar-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.protocol-sidebar .logout-btn {
+  width: 100%;
+  padding: 1rem;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #fca5a5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+.protocol-sidebar .logout-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #fee2e2;
+}
+

@@ -1,0 +1,51 @@
+.vendor-dashboard {
+  display: flex;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #fdf6f0 0%, #fff9f3 100%);
+}
+
+.dashboard-content {
+  margin-left: 260px;
+  flex: 1;
+  padding: 2rem;
+  min-height: 100vh;
+}
+
+.content-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-title {
+  font-family: "Playfair Display", serif;
+  font-size: 2.5rem;
+  color: #523c2b;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+.page-subtitle {
+  font-size: 1.1rem;
+  color: #7a5d4e;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .dashboard-content {
+    margin-left: 0;
+    padding: 1rem;
+  }
+  
+  .page-title {
+    font-size: 2rem;
+  }
+}
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,131 @@
+.service-selection-card {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  border: 2px solid #e5e7eb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.service-selection-card:hover {
+  border-color: #d4af37;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
+}
+
+.service-selection-card.selected {
+  border-color: #065f46;
+  background: #f0fdf4;
+}
+
+.card-image {
+  width: 100%;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-header h5 {
+  font-family: "Playfair Display", serif;
+  color: #523c2b;
+  margin: 0;
+  font-size: 1rem;
+  flex: 1;
+}
+
+.card-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #d4af37;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.rating-count {
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.card-price {
+  color: #d4af37;
+  font-weight: 600;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.card-description {
+  color: #6b7280;
+  font-size: 0.85rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.btn-select,
+.btn-request {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-select {
+  background: #f3f4f6;
+  color: #523c2b;
+}
+
+.btn-select:hover {
+  background: #e5e7eb;
+}
+
+.btn-select.selected {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.btn-request {
+  background: linear-gradient(135deg, #d4af37, #b89627);
+  color: white;
+}
+
+.btn-request:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
+}
+
+
+
+
+
+
+
+
+
