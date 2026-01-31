@@ -51,6 +51,13 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(name = "selected_role")
     private UserRole selectedRole;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "package_type")
+    private PackageType packageType = PackageType.NORMAL;
+
+    @Column(name = "package_expiry_date")
+    private LocalDateTime packageExpiryDate;
     
     @Column(name = "profile_completed", nullable = false)
     private Boolean profileCompleted = false;
@@ -79,6 +86,12 @@ public class User {
         ATTENDEE,
         VENDOR,
         USER  // For couples
+    }
+
+    public enum PackageType {
+        NORMAL,
+        GOLD,
+        PREMIUM
     }
 }
 

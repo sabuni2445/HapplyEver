@@ -14,6 +14,17 @@ const api = axios.create({
 // For now, we'll keep it simple as the backend seems to rely on Clerk IDs passed in body/params
 // rather than Bearer tokens for most endpoints, based on the web implementation.
 
+// DB Login API (for manager, protocol, admin, attendee)
+export const loginWithCredentials = async (email, password) => {
+  try {
+    const response = await api.post('auth/login', { email, password });
+    return response.data;
+  } catch (error) {
+    console.error("Error during credentials login:", error);
+    throw error;
+  }
+};
+
 // Sync user from Clerk to database
 export const syncUserToDatabase = async (user) => {
   try {
@@ -272,16 +283,23 @@ export const getGalleryByWedding = async (weddingId) => {
   }
 };
 
-export const uploadGalleryItem = async (weddingId, formData) => {
+export const uploadGalleryItem = async (clerkId, weddingId, itemData) => {
   try {
-    const response = await api.post(`gallery/upload/${weddingId}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // Backend expects GalleryItemRequest JSON object
+    const response = await api.post(`gallery/upload?clerkId=${clerkId}`, itemData);
     return response.data;
   } catch (error) {
     console.error("Error uploading gallery item:", error);
+    throw error;
+  }
+};
+
+export const deleteGalleryItem = async (itemId, clerkId) => {
+  try {
+    const response = await api.delete(`gallery/${itemId}?clerkId=${clerkId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting gallery item:", error);
     throw error;
   }
 };
@@ -395,12 +413,181 @@ export const submitAttendeeRating = async (ratingData) => {
   }
 };
 
+// Get ratings by wedding
+export const getRatingsByWedding = async (weddingId) => {
+  try {
+    const response = await api.get(`attendee-ratings/wedding/${weddingId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching ratings by wedding:", error);
+    throw error;
+  }
+};
+
+// Get ratings by rated entity (protocol, wedding, couple)
+export const getRatingsByRated = async (ratedType, ratedId) => {
+  try {
+    const response = await api.get(`attendee-ratings/rated/${ratedType}/${ratedId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching ratings by rated entity:", error);
+    throw error;
+  }
+};
+
 export const getWeddingMessagesForGuest = async (weddingId, guestId) => {
   try {
     const response = await api.get(`wedding-messages/wedding/${weddingId}/guest/${guestId}`);
     return response.data;
   } catch (error) {
     console.error("Error fetching messages for guest:", error);
+    throw error;
+  }
+};
+
+// Vendor Bookings
+export const getVendorBookings = async (vendorClerkId) => {
+  try {
+    const response = await api.get(`bookings/vendor/${vendorClerkId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching vendor bookings:", error);
+    throw error;
+  }
+};
+
+export const updateBookingStatus = async (bookingId, vendorClerkId, status) => {
+  try {
+    const response = await api.patch(`bookings/${bookingId}/vendor/${vendorClerkId}/status`, { status });
+    return response.data;
+  } catch (error) {
+    console.error("Error updating booking status:", error);
+    throw error;
+  }
+};
+
+// User Package
+export const updateUserPackage = async (clerkId, packageType) => {
+  try {
+    const response = await api.patch(`users/${clerkId}/package`, { packageType });
+    return response.data;
+  } catch (error) {
+    console.error("Error updating user package:", error);
+    throw error;
+  }
+};
+
+// Vendor Package Upgrades
+export const initializeVendorPackageUpgrade = async (params) => {
+  try {
+    const response = await api.post('vendor-packages/initialize', params);
+    return response.data;
+  } catch (error) {
+    console.error("Error initializing package upgrade:", error);
+    throw error;
+  }
+};
+
+export const manualVendorPackageUpgrade = async (params) => {
+  try {
+    const response = await api.post('vendor-packages/manual-request', params);
+    return response.data;
+  } catch (error) {
+    console.error("Error requesting manual upgrade:", error);
+    throw error;
+  }
+};
+
+export const verifyVendorPackagePayment = async (txRef) => {
+  try {
+    const response = await api.get(`vendor-packages/verify?txRef=${encodeURIComponent(txRef)}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error verifying package payment:", error);
+    throw error;
+  }
+};
+
+// Ratings for Vendors
+export const getServiceRatings = async (serviceId) => {
+  try {
+    const response = await api.get(`ratings/service/${serviceId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching service ratings:", error);
+    throw error;
+  }
+};
+
+export const getAverageRating = async (serviceId) => {
+  try {
+    const response = await api.get(`ratings/service/${serviceId}/average`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching average rating:", error);
+    throw error;
+  }
+};
+
+export const getVendorRatings = async (vendorClerkId) => {
+  try {
+    const response = await api.get(`ratings/vendor/${vendorClerkId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching vendor ratings:", error);
+    throw error;
+  }
+};
+
+export const rateService = async (serviceId, ratingData) => {
+  try {
+    const response = await api.post(`ratings/service/${serviceId}`, ratingData);
+    return response.data;
+  } catch (error) {
+    console.error("Error rating service:", error);
+    throw error;
+  }
+};
+
+export const rateWedding = async (weddingId, ratingData) => {
+  try {
+    // Assuming we might have a wedding rating endpoint or just log it for now
+    // If not exists, we can create a generic feedback endpoint later
+    console.log("Rating wedding:", weddingId, ratingData);
+    return { success: true };
+  } catch (error) {
+    console.error("Error rating wedding:", error);
+    throw error;
+  }
+};
+
+// Meeting Requests
+export const requestMeeting = async (meetingData) => {
+  try {
+    const response = await api.post('meetings/request', meetingData);
+    return response.data;
+  } catch (error) {
+    console.error("Error requesting meeting:", error);
+    throw error;
+  }
+};
+
+export const getCoupleMeetings = async (coupleId) => {
+  try {
+    const response = await api.get(`meetings/couple/${coupleId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching couple meetings:", error);
+    throw error;
+  }
+};
+
+export const getManagerMeetings = async (managerId) => {
+  try {
+    const response = await api.get(`meetings/manager/${managerId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching manager meetings:", error);
     throw error;
   }
 };

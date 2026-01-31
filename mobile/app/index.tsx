@@ -1,4 +1,5 @@
 import { StyleSheet, View, Text, TouchableOpacity, Animated, Dimensions, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Fonts } from '@/constants/theme';
@@ -56,11 +57,32 @@ export default function SplashScreen() {
 
     useEffect(() => {
         // Check auth state after animation
-        if (isLoaded && isSignedIn && user) {
-            setTimeout(() => {
-                handleRedirect(user.id);
-            }, 1000);
-        }
+        const checkAuth = async () => {
+            if (isLoaded && isSignedIn && user) {
+                setTimeout(() => {
+                    handleRedirect(user.id);
+                }, 1000);
+            } else if (isLoaded) {
+                // Check for backend-only session
+                try {
+                    const userData = await AsyncStorage.getItem('user');
+                    if (userData) {
+                        const parsedUser = JSON.parse(userData);
+                        const role = parsedUser.selectedRole || parsedUser.role || 'COUPLE';
+                        setTimeout(() => {
+                            if (role === 'VENDOR') router.replace('/(tabs)/vendor');
+                            else if (role === 'PROTOCOL') router.replace('/(tabs)/protocol');
+                            else if (role === 'MANAGER') router.replace('/(tabs)/management');
+                            else router.replace('/(tabs)');
+                        }, 1000);
+                    }
+                } catch (error) {
+                    console.error("Error checking local auth:", error);
+                }
+            }
+        };
+
+        checkAuth();
 
         // Start animations
         Animated.parallel([

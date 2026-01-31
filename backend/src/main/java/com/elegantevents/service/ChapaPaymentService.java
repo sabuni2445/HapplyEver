@@ -44,7 +44,12 @@ public class ChapaPaymentService {
         payload.put("first_name", firstName);
         payload.put("last_name", lastName);
         if (phoneNumber != null && !phoneNumber.isEmpty()) {
-            payload.put("phone_number", phoneNumber);
+            // Basic sanitization: only keep + and digits
+            String sanitizedPhone = phoneNumber.replaceAll("[^+\\d]", "");
+            // Chapa expects a valid phone number. If it's too short or contains weird characters, skip it.
+            if (sanitizedPhone.length() >= 9) {
+                payload.put("phone_number", sanitizedPhone);
+            }
         }
         payload.put("tx_ref", txRef);
         payload.put("callback_url", callbackUrl);

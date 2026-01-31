@@ -99,6 +99,13 @@ public class UserService {
         user.setProfileCompleted(true);
         return UserResponse.fromEntity(userRepository.save(user));
     }
+
+    public UserResponse updateUserPackage(String clerkId, User.PackageType packageType) {
+        User user = userRepository.findByClerkId(clerkId)
+                .orElseThrow(() -> new RuntimeException("User not found with clerkId: " + clerkId));
+        user.setPackageType(packageType);
+        return UserResponse.fromEntity(userRepository.save(user));
+    }
     
     public UserResponse updateUserProfile(String clerkId, User userUpdate) {
         User user = userRepository.findByClerkId(clerkId)

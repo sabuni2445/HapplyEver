@@ -1,17 +1,18 @@
 import { useSignIn, useOAuth, useUser } from '@clerk/clerk-expo';
 import { Link, useRouter } from 'expo-router';
-import { Text, TextInput, View, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { Text, TextInput, View, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import React from 'react';
 import { Colors, Fonts } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getUserByClerkId, getRoleDashboard, storeUserData } from '@/utils/navigation';
+import { loginWithCredentials } from '@/utils/api';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function Page() {
-    const { signIn, setActive, isSignedIn } = useSignIn();
+    const { signIn, setActive, isLoaded } = useSignIn();
     const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
     const { user } = useUser();
     const router = useRouter();
@@ -46,7 +47,7 @@ export default function Page() {
     };
 
     const onSignInPress = React.useCallback(async () => {
-        if (!isSignedIn) {
+        if (!isLoaded || !signIn) {
             return;
         }
 
@@ -60,24 +61,31 @@ export default function Page() {
                 await setActive({ session: signInAttempt.createdSessionId });
 
                 // Get the clerk user ID and redirect based on role
-                const clerkUserId = signInAttempt.createdUserId;
-                if (clerkUserId) {
-                    await handleSuccessfulSignIn(clerkUserId);
+                if (user?.id) {
+                    await handleSuccessfulSignIn(user.id);
+                } else {
+                    // Fallback using createdUserId if user object isn't ready
+                    const clerkUserId = signInAttempt.createdSessionId; // Using session ID as a proxy if needed or waiting for user
+                    // Best way is to use user.id which is reliable after setActive
+                    setTimeout(async () => {
+                        if (user?.id) await handleSuccessfulSignIn(user.id);
+                        else router.replace('/(tabs)/couple-dashboard' as any);
+                    }, 500);
                 }
             } else {
                 console.error(JSON.stringify(signInAttempt, null, 2));
             }
         } catch (err: any) {
             console.error(JSON.stringify(err, null, 2));
-            alert(err.errors[0].message);
+            alert(err.errors?.[0]?.message || "Sign in failed");
         }
-    }, [isSignedIn, emailAddress, password]);
+    }, [isLoaded, signIn, emailAddress, password, user]);
 
     const onGoogleSignInPress = React.useCallback(async () => {
         try {
-            const { createdSessionId, setActive: setActiveSession, signUp } = await startOAuthFlow();
+            const { createdSessionId, setActive: setActiveSession, signUp } = await startOAuthFlow!();
             if (createdSessionId) {
-                await setActiveSession({ session: createdSessionId });
+                await setActiveSession!({ session: createdSessionId });
 
                 // Get user ID from the session
                 if (signUp?.createdUserId) {
@@ -85,8 +93,10 @@ export default function Page() {
                 } else if (user?.id) {
                     await handleSuccessfulSignIn(user.id);
                 } else {
-                    // Fallback
-                    router.replace('/(tabs)/couple-dashboard' as any);
+                    setTimeout(async () => {
+                        if (user?.id) await handleSuccessfulSignIn(user.id);
+                        else router.replace('/(tabs)/couple-dashboard' as any);
+                    }, 500);
                 }
             } else {
                 // Use signIn or signUp for next steps such as MFA
@@ -94,7 +104,7 @@ export default function Page() {
         } catch (err) {
             console.error('OAuth error', err);
         }
-    }, [user]);
+    }, [user, startOAuthFlow]);
 
     return (
         <KeyboardAvoidingView
@@ -125,6 +135,25 @@ export default function Page() {
                         <View style={styles.dividerLine} />
                     </View>
 
+                    <TouchableOpacity
+                        style={[styles.guestButton, { borderColor: '#7c3aed', marginBottom: 12 }]}
+                        onPress={() => {
+                            setEmailAddress('protocol@elegantevents.com');
+                            Alert.alert("Protocol Login", "Protocol email set. Please enter your password to continue.");
+                        }}
+                    >
+                        <IconSymbol name="checkmark.shield.fill" size={20} color="#7c3aed" />
+                        <Text style={[styles.guestButtonText, { color: '#7c3aed' }]}>Login as Protocol</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.guestButton}
+                        onPress={() => router.push('/guest')}
+                    >
+                        <IconSymbol name="envelope.open.fill" size={20} color={Colors.light.gold} />
+                        <Text style={styles.guestButtonText}>I have an Invitation Code</Text>
+                    </TouchableOpacity>
+
                     <View style={styles.inputContainer}>
                         <Text style={styles.label}>Email Address</Text>
                         <TextInput
@@ -149,7 +178,28 @@ export default function Page() {
                         />
                     </View>
 
-                    <TouchableOpacity style={styles.button} onPress={onSignInPress}>
+                    <TouchableOpacity
+                        style={styles.button}
+                        onPress={async () => {
+                            const normalizedEmail = emailAddress ? emailAddress.trim().toLowerCase() : '';
+
+                            if (normalizedEmail === 'protocol@elegantevents.com') {
+                                try {
+                                    const response = await loginWithCredentials(normalizedEmail, password);
+                                    if (response.success) {
+                                        await storeUserData(response.user, 'backend');
+                                        const dashboardRoute = getRoleDashboard(response.user.selectedRole || response.user.role);
+                                        router.replace(dashboardRoute as any);
+                                        return;
+                                    }
+                                } catch (error: any) {
+                                    Alert.alert("Login Failed", error.response?.data?.error || "Incorrect password for Protocol account.");
+                                    return;
+                                }
+                            }
+                            onSignInPress();
+                        }}
+                    >
                         <Text style={styles.buttonText}>Sign In</Text>
                     </TouchableOpacity>
 
@@ -303,5 +353,22 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 16,
         fontFamily: Fonts.Cormorant.Regular,
+    },
+    guestButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: Colors.light.gold,
+        padding: 16,
+        borderRadius: 12,
+        gap: 8,
+    },
+    guestButtonText: {
+        color: Colors.light.gold,
+        fontWeight: '700',
+        fontFamily: Fonts.Cormorant.Bold,
+        fontSize: 16,
     },
 });

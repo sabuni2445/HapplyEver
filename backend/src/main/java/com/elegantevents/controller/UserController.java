@@ -15,7 +15,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "${app.frontend.url:http://localhost:5173}")
 public class UserController {
     
     private final UserService userService;
@@ -78,6 +77,32 @@ public class UserController {
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("error", "Invalid role: " + request.get("selectedRole"));
+            return ResponseEntity.badRequest().body(errorResponse);
+        } catch (RuntimeException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+        }
+    }
+
+    @PatchMapping("/{clerkId}/package")
+    public ResponseEntity<Map<String, Object>> updateUserPackage(
+            @PathVariable String clerkId,
+            @RequestBody Map<String, String> request) {
+        try {
+            String packageStr = request.get("packageType");
+            User.PackageType packageType = User.PackageType.valueOf(packageStr.toUpperCase());
+            UserResponse user = userService.updateUserPackage(clerkId, packageType);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("user", user);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "Invalid package type: " + request.get("packageType"));
             return ResponseEntity.badRequest().body(errorResponse);
         } catch (RuntimeException e) {
             Map<String, Object> errorResponse = new HashMap<>();

@@ -3,6 +3,7 @@ package com.elegantevents.controller;
 import com.elegantevents.model.Payment;
 import com.elegantevents.service.ChapaPaymentService;
 import com.elegantevents.service.PaymentService;
+import com.elegantevents.service.VendorPackageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,18 +16,21 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/payments")
-@CrossOrigin(origins = "${app.frontend.url:http://localhost:5173}")
 public class PaymentController {
     
     private final ChapaPaymentService chapaPaymentService;
     private final PaymentService paymentService;
+    private final VendorPackageService packageService;
     
     @org.springframework.beans.factory.annotation.Value("${chapa.webhook.secret}")
     private String webhookSecret;
 
-    public PaymentController(ChapaPaymentService chapaPaymentService, PaymentService paymentService) {
+    public PaymentController(ChapaPaymentService chapaPaymentService, 
+                             PaymentService paymentService,
+                             VendorPackageService packageService) {
         this.chapaPaymentService = chapaPaymentService;
         this.paymentService = paymentService;
+        this.packageService = packageService;
     }
     
     @PostMapping("/chapa/initialize")
@@ -207,8 +211,15 @@ public class PaymentController {
             
             // Try to update payment by chapa reference first
             try {
-                paymentService.updatePaymentStatus(txRef, transactionId, paymentStatus);
-                paymentUpdated = true;
+                if (txRef != null && txRef.startsWith("v-pkg-")) {
+                    if (paymentStatus == Payment.PaymentStatus.PAID) {
+                        packageService.verifyAndActivatePackage(txRef);
+                        paymentUpdated = true;
+                    }
+                } else {
+                    paymentService.updatePaymentStatus(txRef, transactionId, paymentStatus);
+                    paymentUpdated = true;
+                }
                 System.out.println("Payment updated successfully by chapa reference: " + txRef);
             } catch (RuntimeException e) {
                 System.err.println("Payment not found by chapa reference: " + txRef + ", error: " + e.getMessage());
@@ -275,8 +286,15 @@ public class PaymentController {
 
             boolean paymentUpdated = false;
             try {
-                paymentService.updatePaymentStatus(txRef, transactionId, paymentStatus);
-                paymentUpdated = true;
+                if (txRef != null && txRef.startsWith("v-pkg-")) {
+                    if (paymentStatus == Payment.PaymentStatus.PAID) {
+                        packageService.verifyAndActivatePackage(txRef);
+                        paymentUpdated = true;
+                    }
+                } else {
+                    paymentService.updatePaymentStatus(txRef, transactionId, paymentStatus);
+                    paymentUpdated = true;
+                }
             } catch (RuntimeException e) {
                 // Payment not found via reference/transactionId
                 System.err.println("Verify payment - payment not found for txRef: " + txRef + ", error: " + e.getMessage());

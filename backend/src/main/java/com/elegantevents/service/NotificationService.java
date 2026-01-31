@@ -36,6 +36,39 @@ public class NotificationService {
             sendSMSInvitation(phoneNumber, guestName, invitationUrl, uniqueCode);
         }
     }
+
+    public void sendMeetingConfirmation(String email, String userName, String meetingTime, 
+                                        String purpose, String jitsiLink) {
+        if (email != null && !email.isEmpty() && mailSender != null) {
+            try {
+                MimeMessage message = mailSender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+                
+                helper.setFrom(fromEmail);
+                helper.setTo(email);
+                helper.setSubject("Meeting Request Confirmed - Elegant Events");
+                
+                String htmlContent = buildMeetingEmailTemplate(userName, meetingTime, purpose, jitsiLink);
+                helper.setText(htmlContent, true);
+                
+                mailSender.send(message);
+            } catch (MessagingException e) {
+                System.err.println("Failed to send meeting email: " + e.getMessage());
+                // Fallback
+                try {
+                    SimpleMailMessage simpleMessage = new SimpleMailMessage();
+                    simpleMessage.setFrom(fromEmail);
+                    simpleMessage.setTo(email);
+                    simpleMessage.setSubject("Meeting Confirmation");
+                    simpleMessage.setText("Dear " + userName + ",\n\nYour meeting has been scheduled.\n\n" +
+                        "Time: " + meetingTime + "\nPurpose: " + purpose + "\nJoin Meeting: " + jitsiLink);
+                    mailSender.send(simpleMessage);
+                } catch (Exception ex) {
+                    System.err.println("Failed to send simple meeting email: " + ex.getMessage());
+                }
+            }
+        }
+    }
     
     private void sendEmailInvitation(String email, String guestName, String invitationUrl, 
                                      String uniqueCode, String coupleName) {
@@ -116,6 +149,42 @@ public class NotificationService {
         //     new PhoneNumber(twilioPhoneNumber),
         //     smsMessage
         // ).create();
+    }
+
+    private String buildMeetingEmailTemplate(String userName, String meetingTime, String purpose, String jitsiLink) {
+        return "<!DOCTYPE html>" +
+            "<html>" +
+            "<head><meta charset='UTF-8'><style>" +
+            "body { font-family: 'Playfair Display', serif; background: #fdf6f0; padding: 20px; }" +
+            ".container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; padding: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }" +
+            ".header { text-align: center; color: #d4af37; margin-bottom: 30px; }" +
+            ".content { color: #523c2b; line-height: 1.8; }" +
+            ".button { display: inline-block; padding: 15px 30px; background: #d4af37; color: white; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: 600; }" +
+            ".info-box { background: #fdf6f0; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #d4af37; }" +
+            ".footer { margin-top: 30px; text-align: center; color: #6b7280; font-size: 14px; }" +
+            "</style></head>" +
+            "<body>" +
+            "<div class='container'>" +
+            "<div class='header'><h1>📅 Meeting Confirmation</h1></div>" +
+            "<div class='content'>" +
+            "<p>Dear " + userName + ",</p>" +
+            "<p>Your meeting request with the manager has been received and confirmed.</p>" +
+            "<div class='info-box'>" +
+            "<p><strong>Time:</strong> " + meetingTime + "</p>" +
+            "<p><strong>Purpose:</strong> " + purpose + "</p>" +
+            "</div>" +
+            "<p>You can join the meeting using Jitsi at the scheduled time by clicking the button below:</p>" +
+            "<div style='text-align: center;'><a href='" + jitsiLink + "' class='button' target='_blank'>Join Meeting</a></div>" +
+            "<p style='margin-top: 15px; font-size: 0.9em; color: #6b7280;'>Meeting Link: <br/>" + jitsiLink + "</p>" +
+            "<p>We look forward to meeting with you!</p>" +
+            "<p>Best regards,<br>Elegant Events Team</p>" +
+            "</div>" +
+            "<div class='footer'>" +
+            "<p>This is an automated notification. Please save this meeting link for your reference.</p>" +
+            "</div>" +
+            "</div>" +
+            "</body>" +
+            "</html>";
     }
 }
 

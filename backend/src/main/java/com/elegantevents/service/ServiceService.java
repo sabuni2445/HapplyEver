@@ -53,6 +53,16 @@ public class ServiceService {
     public List<com.elegantevents.model.Service> getAllActiveServices() {
         return serviceRepository.findAll().stream()
                 .filter(s -> s.getStatus() == com.elegantevents.model.Service.ServiceStatus.ACTIVE)
+                .sorted((s1, s2) -> {
+                    User u1 = userRepository.findByClerkId(s1.getClerkId()).orElse(null);
+                    User u2 = userRepository.findByClerkId(s2.getClerkId()).orElse(null);
+                    
+                    int p1 = u1 != null && u1.getPackageType() != null ? u1.getPackageType().ordinal() : 0;
+                    int p2 = u2 != null && u2.getPackageType() != null ? u2.getPackageType().ordinal() : 0;
+                    
+                    if (p1 != p2) return p2 - p1; // Higher ordinal first (Premium > Gold > Normal)
+                    return s2.getCreatedAt().compareTo(s1.getCreatedAt()); // Then by date
+                })
                 .collect(java.util.stream.Collectors.toList());
     }
     

@@ -22,6 +22,7 @@ public class UserResponse {
     private String imageUrl;
     private String phoneNumber;
     private User.UserRole selectedRole;
+    private User.PackageType packageType;
     private Boolean profileCompleted;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -37,6 +38,7 @@ public class UserResponse {
                 .imageUrl(user.getImageUrl())
                 .phoneNumber(user.getPhoneNumber())
                 .selectedRole(user.getSelectedRole())
+                .packageType(user.getPackageType())
                 .profileCompleted(user.getProfileCompleted())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())

@@ -1,7 +1,8 @@
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, Switch, TextInput, Image } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, Switch, TextInput, Image, Modal } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { useUser } from '@clerk/clerk-expo';
 import { useState, useEffect, useRef } from 'react';
-import { getWeddingCard, createOrUpdateWeddingCard, generateAIImage } from '@/utils/api';
+import { getWeddingCard, createOrUpdateWeddingCard, generateAIImage, getWeddingDetails } from '@/utils/api';
 import { ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, Fonts } from '@/constants/theme';
@@ -10,18 +11,38 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import * as ImagePicker from 'expo-image-picker';
 import { Video, ResizeMode } from 'expo-av';
 
+// Theme Background Assets
+const IslamicBG = require('../assets/images/backgrounds/islamic_bg.png');
+const ChristianBG = require('../assets/images/backgrounds/christian_bg.png');
+const GoldBG = require('../assets/images/backgrounds/gold_bg.png');
+const RomanticBG = require('../assets/images/backgrounds/romantic_bg.png');
+const EthiopianBG = require('../assets/images/backgrounds/ethiopian_bg.png');
+const IslamicRedBG = require('../assets/images/backgrounds/islamic_red.png');
+const ChristianFloralBG = require('../assets/images/backgrounds/christian_floral.png');
+const HabeshaTradBG = require('../assets/images/backgrounds/habesha_traditional.png');
+
+const PRESET_BACKGROUNDS = [
+    { id: 'habesha_couple', name: 'Traditional Habesha', url: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=1000', type: 'IMAGE' },
+    { id: 'maroon_gold', name: 'Maroon & Gold Ornament', url: 'https://images.unsplash.com/photo-1549416843-70732df894c2?q=80&w=1000', type: 'IMAGE' },
+    { id: 'gold_luxury', name: 'Gold Luxury', url: 'https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?q=80&w=1000', type: 'IMAGE' },
+    { id: 'romantic_floral', name: 'Romantic Floral', url: 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1000', type: 'IMAGE' },
+    { id: 'ethiopian_modern', name: 'Ethiopian Modern', url: 'https://images.unsplash.com/photo-1584974232726-67ff93839172?q=80&w=1000', type: 'IMAGE' },
+];
+
+const PRESET_COLORS = [
+    '#d4af37', '#ffffff', '#000000', '#2a2828', '#f3f2f2',
+    '#e11d48', '#065f46', '#1e40af', '#7c3aed', '#d48bb8',
+    '#78350f', '#fbbf24', '#059669', '#3b82f6', '#fef3c7'
+];
+
 const THEMES = [
-    { id: "classic", name: "Classic Elegance", color: "#d4af37" },
-    { id: "modern", name: "Modern Minimalist", color: "#523c2b" },
-    { id: "romantic", name: "Romantic Blush", color: "#d48bb8" },
-    { id: "tropical", name: "Tropical Paradise", color: "#10b981" },
-    { id: "vintage", name: "Vintage Charm", color: "#92400e" },
-    { id: "royal", name: "Royal Luxury", color: "#7c3aed" },
-    { id: "ethiopian_traditional", name: "Ethiopian Traditional", color: "#e11d48" },
-    { id: "ethiopian_modern", name: "Ethiopian Modern", color: "#fbbf24" },
-    { id: "habesha_elegant", name: "Habesha Elegant", color: "#78350f" },
-    { id: "tigray_heritage", name: "Tigray Heritage", color: "#15803d" },
-    { id: "amhara_classic", name: "Amhara Classic", color: "#2563eb" },
+    { id: "gold_glamour", name: "Gold Glamour", color: "#d4af37", bg: "#1a1a1a", text: "#ffffff", accent: "#d4af37", font: "Playfair", bgImage: GoldBG },
+    { id: "ivory_classic", name: "Ivory Classic", color: "#d4af37", bg: "#fdf6f0", text: "#2a2828", accent: "#d4af37", font: "Playfair", bgImage: GoldBG },
+    { id: "midnight_royal", name: "Midnight Royal", color: "#c5a059", bg: "#001f3f", text: "#ffffff", accent: "#c5a059", font: "Cormorant", bgImage: 'https://images.unsplash.com/photo-1550005810-3796d84a754b?q=80&w=2000' },
+    { id: "romantic_pink", name: "Romantic Blush", color: "#d48bb8", bg: "#fff5f8", text: "#4a3a3a", accent: "#d48bb8", font: "Cormorant", bgImage: RomanticBG },
+    { id: "islamic_tradition", name: "Islamic Tradition", color: "#d4af37", bg: "#7f1d1d", text: "#ffffff", accent: "#d4af37", font: "Playfair", bgImage: IslamicRedBG },
+    { id: "christian_wedding", name: "Christian Wedding", color: "#1e40af", bg: "#eff6ff", text: "#1e3a8a", accent: "#3b82f6", font: "Cormorant", bgImage: ChristianFloralBG },
+    { id: "habesha_heritage", name: "Habesha Heritage", color: "#78350f", bg: "#fffbeb", text: "#451a03", accent: "#78350f", font: "Playfair", bgImage: HabeshaTradBG },
 ];
 
 export default function WeddingCardScreen() {
@@ -44,25 +65,65 @@ export default function WeddingCardScreen() {
     const [alignment, setAlignment] = useState('center');
     const [aiPrompt, setAiPrompt] = useState('');
     const [generating, setGenerating] = useState(false);
+    const [generatedAiImage, setGeneratedAiImage] = useState('');
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+    // Wedding Details State
+    const [partnerName, setPartnerName] = useState('');
+    const [weddingDate, setWeddingDate] = useState('');
+    const [weddingTime, setWeddingTime] = useState('');
+    const [location, setLocation] = useState('');
+    const [venue, setVenue] = useState('');
 
     useEffect(() => {
         const loadData = async () => {
             if (user) {
-                const card = await getWeddingCard(user.id);
-                if (card) {
-                    setIsEnabled(card.digitalCardEnabled);
-                    setSelectedTheme(card.theme || 'classic');
-                    setMessage(card.message || message);
-                    setBackgroundImage(card.backgroundImage || '');
-                    setBackgroundType(card.backgroundType || 'IMAGE');
-                    setFontStyle(card.fontStyle || 'Playfair');
-                    setFontSize(card.fontSize || 1.5);
-                    setNamesFontSize(card.namesFontSize || 4.2);
-                    setTextColor(card.textColor || '#FFFFFF');
-                    setBackgroundColor(card.backgroundColor || '#2a2828');
-                    setAccentColor(card.accentColor || '#f3f2f2');
-                    setOverlayOpacity(card.overlayOpacity || 50);
-                    setAlignment(card.alignment || 'center');
+                try {
+                    const card = await getWeddingCard(user.id);
+                    if (card) {
+                        console.log("Loaded Wedding Card:", card);
+                        setIsEnabled(card.digitalCardEnabled);
+                        setSelectedTheme(card.theme || 'gold_glamour');
+                        setMessage(card.customText || message);
+                        setBackgroundImage(card.backgroundImage || '');
+                        const isVideo = card.backgroundImage?.match(/\.(mp4|mov|wmv|avi|flv)$|video/i);
+                        setBackgroundType(isVideo ? 'VIDEO' : 'IMAGE');
+                        setFontStyle(card.fontFamily || 'Playfair');
+                        setFontSize(typeof card.fontSize === 'string' ? parseFloat(card.fontSize) || 1.5 : card.fontSize || 1.5);
+                        setNamesFontSize(typeof card.nameFontSize === 'string' ? parseFloat(card.nameFontSize) || 4.2 : card.nameFontSize || 4.2);
+                        setTextColor(card.textColor || '#FFFFFF');
+                        setBackgroundColor(card.backgroundColor || '#2a2828');
+                        setAccentColor(card.accentColor || '#f3f2f2');
+                        setOverlayOpacity(card.overlayOpacity || 50);
+                        setAlignment(card.textAlign || 'center');
+                    }
+
+                    const details = await getWeddingDetails(user.id);
+                    if (details) {
+                        console.log("Loaded Wedding Details:", details);
+                        setPartnerName(details.partnersName || '');
+
+                        // Handle Date (might be array or string)
+                        let formattedDate = details.weddingDate;
+                        if (Array.isArray(details.weddingDate)) {
+                            const [y, m, d] = details.weddingDate;
+                            formattedDate = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                        }
+                        setWeddingDate(formattedDate || '');
+
+                        // Handle Time
+                        let formattedTime = details.weddingTime;
+                        if (Array.isArray(details.weddingTime)) {
+                            const [h, min] = details.weddingTime;
+                            formattedTime = `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+                        }
+                        setWeddingTime(formattedTime || '');
+
+                        setLocation(details.location || '');
+                        setVenue(details.venue || '');
+                    }
+                } catch (err) {
+                    console.error("Error loading wedding card/details:", err);
                 }
             }
         };
@@ -73,16 +134,19 @@ export default function WeddingCardScreen() {
         if (!aiPrompt.trim()) return;
         setGenerating(true);
         try {
+            console.log("Generating AI Image with prompt:", aiPrompt);
             const result = await generateAIImage(aiPrompt);
             if (result && result.imageUrl) {
-                setBackgroundImage(result.imageUrl);
-                setBackgroundType('IMAGE');
-                Alert.alert("Success", "AI Image generated and set as background!");
+                setGeneratedAiImage(result.imageUrl);
+                Alert.alert("Success", "AI Image generated! Click the preview below to apply it.");
             } else {
-                Alert.alert("Error", "Failed to generate image. Please try again.");
+                console.warn("AI Generation returned no image URL:", result);
+                Alert.alert("Notice", "AI generation completed but no image was returned. Please try a different prompt.");
             }
-        } catch (error) {
-            Alert.alert("Error", "Failed to generate AI image");
+        } catch (error: any) {
+            console.error("AI Generation Critical Error:", error);
+            const errorMessage = error?.response?.data?.message || error?.message || "Unknown error";
+            Alert.alert("AI Generation Failed", `We couldn't generate your image right now. Reason: ${errorMessage}. Please try again later.`);
         } finally {
             setGenerating(false);
         }
@@ -93,17 +157,16 @@ export default function WeddingCardScreen() {
             await createOrUpdateWeddingCard(user.id, {
                 digitalCardEnabled: isEnabled,
                 theme: selectedTheme,
-                message,
+                customText: message,
                 backgroundImage,
-                backgroundType,
-                fontStyle,
-                fontSize,
-                namesFontSize,
+                fontFamily: fontStyle,
+                fontSize: String(fontSize),
+                nameFontSize: String(namesFontSize),
                 textColor,
                 backgroundColor,
                 accentColor,
                 overlayOpacity,
-                alignment
+                textAlign: alignment
             });
             Alert.alert("Success", "Wedding card updated!");
             router.back();
@@ -166,7 +229,19 @@ export default function WeddingCardScreen() {
                                     <TouchableOpacity
                                         key={theme.id}
                                         style={[styles.themeOption, selectedTheme === theme.id && styles.selectedTheme, { borderColor: theme.color }]}
-                                        onPress={() => setSelectedTheme(theme.id)}
+                                        onPress={() => {
+                                            setSelectedTheme(theme.id);
+                                            setBackgroundColor(theme.bg);
+                                            setTextColor(theme.text);
+                                            setAccentColor(theme.accent);
+                                            setFontStyle(theme.font);
+                                            if (theme.bgImage) {
+                                                setBackgroundImage(theme.bgImage);
+                                                setBackgroundType('IMAGE');
+                                                setOverlayOpacity(30);
+                                            }
+                                            setShowPreviewModal(true);
+                                        }}
                                     >
                                         <View style={[styles.colorPreview, { backgroundColor: theme.color }]} />
                                         <Text style={styles.themeName}>{theme.name}</Text>
@@ -196,7 +271,25 @@ export default function WeddingCardScreen() {
                         </View>
 
                         <View style={styles.controlGroup}>
-                            <Text style={styles.subLabel}>Background {backgroundType === 'IMAGE' ? 'Image' : 'Video'}</Text>
+                            <Text style={styles.subLabel}>Suggested Backgrounds</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+                                {PRESET_BACKGROUNDS.map((preset) => (
+                                    <TouchableOpacity
+                                        key={preset.id}
+                                        onPress={() => {
+                                            setBackgroundImage(preset.url);
+                                            setBackgroundType(preset.type as any);
+                                            setOverlayOpacity(30);
+                                        }}
+                                        style={[styles.presetOption, backgroundImage === preset.url && styles.selectedPreset]}
+                                    >
+                                        <Image source={{ uri: preset.url }} style={styles.presetImage} />
+                                        <Text style={styles.presetText} numberOfLines={1}>{preset.name}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+
+                            <Text style={[styles.subLabel, { marginTop: 20 }]}>Custom Background {backgroundType === 'IMAGE' ? 'Image' : 'Video'}</Text>
                             <TouchableOpacity style={styles.uploadButton} onPress={() => pickMedia(backgroundType)}>
                                 <IconSymbol name={backgroundType === 'IMAGE' ? "photo" : "video"} size={24} color={Colors.light.text} />
                                 <Text style={styles.uploadButtonText}>
@@ -225,7 +318,7 @@ export default function WeddingCardScreen() {
                         <View style={styles.controlGroup}>
                             <Text style={styles.subLabel}>AI Image Generator</Text>
                             <Text style={styles.description}>
-                                Describe the background you want, and our AI will generate it for you!
+                                Our AI will generate a unique background based on your description.
                             </Text>
                             <TextInput
                                 style={[styles.input, styles.textArea, { marginTop: 12 }]}
@@ -249,10 +342,85 @@ export default function WeddingCardScreen() {
                                     </>
                                 )}
                             </TouchableOpacity>
+
+                            {generatedAiImage && (
+                                <View style={{ marginTop: 16, alignItems: 'center' }}>
+                                    <Text style={styles.miniLabel}>Generated Preview (Click to Apply)</Text>
+                                    <TouchableOpacity
+                                        style={styles.generatedPreviewContainer}
+                                        onPress={() => {
+                                            setBackgroundImage(generatedAiImage);
+                                            setBackgroundType('IMAGE');
+                                            setOverlayOpacity(30);
+                                            Alert.alert("Applied", "AI generation set as card background!");
+                                        }}
+                                    >
+                                        <Image source={{ uri: generatedAiImage }} style={styles.generatedPreviewImage} />
+                                        <View style={styles.previewApplyOverlay}>
+                                            <IconSymbol name="checkmark.circle.fill" size={24} color="#fff" />
+                                        </View>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
                         </View>
 
                         <View style={styles.controlGroup}>
-                            <Text style={styles.subLabel}>Typography</Text>
+                            <Text style={styles.subLabel}>Typography & Spacing</Text>
+
+                            <View style={styles.adjustmentItem}>
+                                <View style={styles.rowBetween}>
+                                    <Text style={styles.miniLabel}>General Font Size</Text>
+                                    <Text style={styles.adjustmentValue}>{fontSize.toFixed(1)}rem</Text>
+                                </View>
+                                <Slider
+                                    style={styles.slider}
+                                    minimumValue={0.5}
+                                    maximumValue={3.0}
+                                    step={0.1}
+                                    value={fontSize}
+                                    onValueChange={setFontSize}
+                                    minimumTrackTintColor={Colors.light.gold}
+                                    maximumTrackTintColor="#d3d3d3"
+                                    thumbTintColor={Colors.light.gold}
+                                />
+                            </View>
+
+                            <View style={styles.adjustmentItem}>
+                                <View style={styles.rowBetween}>
+                                    <Text style={styles.miniLabel}>Names Font Size *</Text>
+                                    <Text style={styles.adjustmentValue}>{namesFontSize.toFixed(1)}rem</Text>
+                                </View>
+                                <Slider
+                                    style={styles.slider}
+                                    minimumValue={1.0}
+                                    maximumValue={6.0}
+                                    step={0.1}
+                                    value={namesFontSize}
+                                    onValueChange={setNamesFontSize}
+                                    minimumTrackTintColor={Colors.light.gold}
+                                    maximumTrackTintColor="#d3d3d3"
+                                    thumbTintColor={Colors.light.gold}
+                                />
+                            </View>
+
+                            <View style={styles.adjustmentItem}>
+                                <View style={styles.rowBetween}>
+                                    <Text style={styles.miniLabel}>Overlay Opacity</Text>
+                                    <Text style={styles.adjustmentValue}>{overlayOpacity}%</Text>
+                                </View>
+                                <Slider
+                                    style={styles.slider}
+                                    minimumValue={0}
+                                    maximumValue={100}
+                                    step={1}
+                                    value={overlayOpacity}
+                                    onValueChange={setOverlayOpacity}
+                                    minimumTrackTintColor={Colors.light.gold}
+                                    maximumTrackTintColor="#d3d3d3"
+                                    thumbTintColor={Colors.light.gold}
+                                />
+                            </View>
+
                             <Text style={styles.miniLabel}>Font Family</Text>
                             <View style={styles.optionsRow}>
                                 {['Playfair', 'Cormorant', 'Roboto'].map((font) => (
@@ -264,27 +432,6 @@ export default function WeddingCardScreen() {
                                         <Text style={[styles.optionText, fontStyle === font && { color: '#fff' }]}>{font}</Text>
                                     </TouchableOpacity>
                                 ))}
-                            </View>
-
-                            <View style={styles.row}>
-                                <View style={{ flex: 1, marginRight: 8 }}>
-                                    <Text style={styles.miniLabel}>General Font Size (rem)</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        value={String(fontSize)}
-                                        onChangeText={(v) => setFontSize(parseFloat(v) || 0)}
-                                        keyboardType="numeric"
-                                    />
-                                </View>
-                                <View style={{ flex: 1, marginLeft: 8 }}>
-                                    <Text style={styles.miniLabel}>Names Font Size (rem)</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        value={String(namesFontSize)}
-                                        onChangeText={(v) => setNamesFontSize(parseFloat(v) || 0)}
-                                        keyboardType="numeric"
-                                    />
-                                </View>
                             </View>
 
                             <Text style={styles.miniLabel}>Text Alignment</Text>
@@ -302,47 +449,40 @@ export default function WeddingCardScreen() {
                         </View>
 
                         <View style={styles.controlGroup}>
-                            <Text style={styles.subLabel}>Colors</Text>
-                            <View style={styles.row}>
-                                <View style={{ flex: 1, marginRight: 8 }}>
-                                    <Text style={styles.miniLabel}>Text Color</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        value={textColor}
-                                        onChangeText={setTextColor}
-                                        placeholder="#FFFFFF"
+                            <Text style={styles.subLabel}>Colors Palette</Text>
+
+                            <Text style={styles.miniLabel}>Text Color</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorPalette}>
+                                {PRESET_COLORS.map((color) => (
+                                    <TouchableOpacity
+                                        key={`text-${color}`}
+                                        onPress={() => setTextColor(color)}
+                                        style={[styles.colorSwatch, { backgroundColor: color }, textColor === color && styles.selectedSwatch]}
                                     />
-                                </View>
-                                <View style={{ flex: 1, marginLeft: 8 }}>
-                                    <Text style={styles.miniLabel}>Background Color</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        value={backgroundColor}
-                                        onChangeText={setBackgroundColor}
-                                        placeholder="#2a2828"
+                                ))}
+                            </ScrollView>
+
+                            <Text style={styles.miniLabel}>Background Color</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorPalette}>
+                                {PRESET_COLORS.map((color) => (
+                                    <TouchableOpacity
+                                        key={`bg-${color}`}
+                                        onPress={() => setBackgroundColor(color)}
+                                        style={[styles.colorSwatch, { backgroundColor: color }, backgroundColor === color && styles.selectedSwatch]}
                                     />
-                                </View>
-                            </View>
-                            <View style={styles.row}>
-                                <View style={{ flex: 1, marginRight: 8 }}>
-                                    <Text style={styles.miniLabel}>Accent Color</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        value={accentColor}
-                                        onChangeText={setAccentColor}
-                                        placeholder="#f3f2f2"
+                                ))}
+                            </ScrollView>
+
+                            <Text style={styles.miniLabel}>Accent Color</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorPalette}>
+                                {PRESET_COLORS.map((color) => (
+                                    <TouchableOpacity
+                                        key={`accent-${color}`}
+                                        onPress={() => setAccentColor(color)}
+                                        style={[styles.colorSwatch, { backgroundColor: color }, accentColor === color && styles.selectedSwatch]}
                                     />
-                                </View>
-                                <View style={{ flex: 1, marginLeft: 8 }}>
-                                    <Text style={styles.miniLabel}>Overlay Opacity (%)</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        value={String(overlayOpacity)}
-                                        onChangeText={(v) => setOverlayOpacity(parseInt(v) || 0)}
-                                        keyboardType="numeric"
-                                    />
-                                </View>
-                            </View>
+                                ))}
+                            </ScrollView>
                         </View>
 
                         <Text style={styles.sectionTitle}>Preview</Text>
@@ -354,14 +494,14 @@ export default function WeddingCardScreen() {
                                 backgroundType === 'VIDEO' ? (
                                     <Video
                                         style={StyleSheet.absoluteFillObject}
-                                        source={{ uri: backgroundImage }}
+                                        source={typeof backgroundImage === 'string' ? { uri: backgroundImage } : backgroundImage}
                                         resizeMode={ResizeMode.COVER}
                                         isLooping
                                         shouldPlay
                                         isMuted
                                     />
                                 ) : (
-                                    <Image source={{ uri: backgroundImage }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+                                    <Image source={typeof backgroundImage === 'string' ? { uri: backgroundImage } : backgroundImage} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
                                 )
                             ) : null}
 
@@ -378,23 +518,36 @@ export default function WeddingCardScreen() {
                                 borderRightWidth: alignment === 'right' ? 4 : 0,
                                 paddingHorizontal: 20
                             }]}>
-                                <Text style={[styles.previewTitle, {
-                                    fontFamily: fontStyle === 'Roboto' ? 'System' : (Fonts as any)[fontStyle]?.Bold,
-                                    color: textColor,
-                                    fontSize: namesFontSize * 10, // Scale down for mobile preview
-                                    textAlign: alignment as any
+                                <View style={[styles.textPlate, {
+                                    backgroundColor: 'rgba(255,255,255,0.75)',
+                                    padding: 24,
+                                    borderRadius: 16,
+                                    width: '85%',
+                                    borderWidth: 1,
+                                    borderColor: 'rgba(255,255,255,0.4)',
                                 }]}>
-                                    {user?.firstName} & Partner
-                                </Text>
-                                <View style={[styles.divider, { backgroundColor: accentColor }]} />
-                                <Text style={[styles.previewMessage, {
-                                    fontFamily: fontStyle === 'Roboto' ? 'System' : (Fonts as any)[fontStyle]?.Regular,
-                                    color: textColor,
-                                    fontSize: fontSize * 12, // Scale down for mobile preview
-                                    textAlign: alignment as any
-                                }]}>
-                                    {message}
-                                </Text>
+                                    <Text style={[styles.previewTitle, {
+                                        fontFamily: fontStyle === 'Roboto' ? 'System' : (Fonts as any)[fontStyle]?.Bold,
+                                        color: textColor,
+                                        fontSize: namesFontSize * 9,
+                                        textAlign: alignment as any,
+                                        textShadowColor: 'rgba(0, 0, 0, 0.2)',
+                                        textShadowOffset: { width: 1, height: 1 },
+                                        textShadowRadius: 3
+                                    }]}>
+                                        {user?.firstName} & Partner
+                                    </Text>
+                                    <View style={[styles.divider, { backgroundColor: accentColor, alignSelf: 'center' }]} />
+                                    <Text style={[styles.previewMessage, {
+                                        fontFamily: fontStyle === 'Roboto' ? 'System' : (Fonts as any)[fontStyle]?.Regular,
+                                        color: textColor,
+                                        fontSize: fontSize * 11,
+                                        textAlign: alignment as any,
+                                        lineHeight: fontSize * 18
+                                    }]}>
+                                        {message}
+                                    </Text>
+                                </View>
                             </View>
                         </View>
                     </>
@@ -403,8 +556,117 @@ export default function WeddingCardScreen() {
                 <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                     <Text style={styles.saveButtonText}>Save Changes</Text>
                 </TouchableOpacity>
+
+                <Modal
+                    visible={showPreviewModal}
+                    animationType="slide"
+                    transparent={true}
+                    onRequestClose={() => setShowPreviewModal(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <TouchableOpacity
+                                style={styles.closeModalButton}
+                                onPress={() => setShowPreviewModal(false)}
+                            >
+                                <IconSymbol name="xmark.circle.fill" size={32} color="#1a1a1a" />
+                            </TouchableOpacity>
+
+                            <Text style={styles.modalTitle}>Design Preview</Text>
+
+                            <View style={[styles.previewCard, {
+                                backgroundColor: backgroundColor,
+                                alignItems: alignment === 'center' ? 'center' : alignment === 'left' ? 'flex-start' : 'flex-end',
+                                height: '70%', // Adjust for modal
+                                marginTop: 20
+                            }]}>
+                                {backgroundImage ? (
+                                    backgroundType === 'VIDEO' ? (
+                                        <Video
+                                            style={StyleSheet.absoluteFillObject}
+                                            source={{ uri: backgroundImage }}
+                                            resizeMode={ResizeMode.COVER}
+                                            isLooping
+                                            shouldPlay
+                                            isMuted
+                                        />
+                                    ) : (
+                                        <Image source={typeof backgroundImage === 'string' ? { uri: backgroundImage } : backgroundImage} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+                                    )
+                                ) : null}
+
+                                <View style={[StyleSheet.absoluteFillObject, {
+                                    backgroundColor: backgroundColor,
+                                    opacity: overlayOpacity / 100
+                                }]} />
+
+                                <View style={[styles.previewContent, {
+                                    alignItems: alignment === 'center' ? 'center' : alignment === 'left' ? 'flex-start' : 'flex-end',
+                                    borderColor: accentColor,
+                                    borderLeftWidth: alignment === 'left' ? 4 : 0,
+                                    borderRightWidth: alignment === 'right' ? 4 : 0,
+                                    paddingHorizontal: 20
+                                }]}>
+                                    <View style={[styles.textPlate, {
+                                        backgroundColor: 'rgba(255,255,255,0.75)',
+                                        padding: 28,
+                                        borderRadius: 20,
+                                        width: '85%',
+                                        borderWidth: 1,
+                                        borderColor: 'rgba(255,255,255,0.5)',
+                                    }]}>
+                                        <Text style={[styles.previewTitle, {
+                                            fontFamily: fontStyle === 'Roboto' ? 'System' : (Fonts as any)[fontStyle]?.Bold,
+                                            color: textColor,
+                                            fontSize: namesFontSize * 8,
+                                            textAlign: alignment as any,
+                                            textShadowColor: 'rgba(0, 0, 0, 0.3)',
+                                            textShadowOffset: { width: 1, height: 2 },
+                                            textShadowRadius: 4
+                                        }]}>
+                                            {user?.firstName} & {partnerName || 'Partner'}
+                                        </Text>
+                                        <View style={[styles.divider, { backgroundColor: accentColor, alignSelf: 'center' }]} />
+                                        <Text style={[styles.previewMessage, {
+                                            fontFamily: fontStyle === 'Roboto' ? 'System' : (Fonts as any)[fontStyle]?.Regular,
+                                            color: textColor,
+                                            fontSize: fontSize * 10,
+                                            textAlign: alignment as any,
+                                            marginBottom: 12,
+                                            lineHeight: fontSize * 16
+                                        }]}>
+                                            {message}
+                                        </Text>
+
+                                        {(weddingDate || location) && (
+                                            <View style={{ marginTop: 10, alignItems: alignment as any }}>
+                                                {weddingDate && (
+                                                    <Text style={[styles.previewDetail, { color: textColor, fontFamily: Fonts.Cormorant.Regular, fontSize: 16 }]}>
+                                                        {weddingDate} {weddingTime ? `at ${weddingTime}` : ''}
+                                                    </Text>
+                                                )}
+                                                {location && (
+                                                    <Text style={[styles.previewDetail, { color: textColor, fontFamily: Fonts.Cormorant.Regular, marginTop: 6, fontSize: 14, opacity: 0.9 }]}>
+                                                        {location} {venue ? `(${venue})` : ''}
+                                                    </Text>
+                                                )}
+                                            </View>
+                                        )}
+                                    </View>
+                                </View>
+                            </View>
+
+                            <TouchableOpacity
+                                style={styles.modalApplyButton}
+                                onPress={() => setShowPreviewModal(false)}
+                            >
+                                <Text style={styles.modalApplyButtonText}>Keep Design</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
             </ScrollView>
-        </View>
+        </View >
     );
 }
 
@@ -595,18 +857,20 @@ const styles = StyleSheet.create({
     },
     previewCard: {
         width: '100%',
-        aspectRatio: 0.6,
-        borderRadius: 24,
+        aspectRatio: 0.65, // Slightly wider for better mobile feel
+        borderRadius: 30, // More rounded for modern look
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: 'rgba(212, 175, 55, 0.3)', // Subtle gold border
         justifyContent: 'center',
         marginTop: 10,
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 10,
+        backgroundColor: '#fff',
+        // Smoother, deeper shadows
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.15,
+        shadowRadius: 20,
+        elevation: 10,
     },
     previewContent: {
         zIndex: 2,
@@ -672,7 +936,126 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontFamily: Fonts.Cormorant.Bold,
     },
+    presetOption: { width: 100, alignItems: 'center', marginRight: 16 },
+    presetImage: { width: 100, height: 100, borderRadius: 8, borderWidth: 1, borderColor: '#eee', marginBottom: 6 },
+    selectedPreset: { borderColor: Colors.light.gold, borderWidth: 3 },
+    presetText: { fontSize: 10, fontFamily: Fonts.Cormorant.Regular, color: Colors.light.textSecondary, textAlign: 'center' },
     disabledButton: {
         opacity: 0.5,
+    },
+    generatedPreviewContainer: {
+        width: '100%',
+        height: 200,
+        borderRadius: 12,
+        overflow: 'hidden',
+        marginTop: 8,
+        position: 'relative',
+    },
+    generatedPreviewImage: {
+        width: '100%',
+        height: '100%',
+    },
+    previewApplyOverlay: {
+        position: 'absolute',
+        bottom: 12,
+        right: 12,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        borderRadius: 20,
+        padding: 4,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        width: '90%',
+        height: '80%',
+        backgroundColor: '#fff',
+        borderRadius: 30,
+        padding: 20,
+        alignItems: 'center',
+        position: 'relative',
+    },
+    closeModalButton: {
+        position: 'absolute',
+        top: 20,
+        right: 20,
+        zIndex: 10,
+    },
+    modalTitle: {
+        fontFamily: Fonts.Playfair.Bold,
+        fontSize: 24,
+        color: '#1a1a1a',
+        marginTop: 10,
+    },
+    modalApplyButton: {
+        backgroundColor: Colors.light.gold,
+        paddingVertical: 15,
+        paddingHorizontal: 40,
+        borderRadius: 30,
+        marginTop: 30,
+    },
+    modalApplyButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontFamily: Fonts.Cormorant.Bold,
+    },
+    aiInfoNote: {
+        fontFamily: Fonts.Cormorant.Regular,
+        fontSize: 12,
+        color: Colors.light.textSecondary,
+        marginTop: 4,
+        fontStyle: 'italic',
+    },
+    adjustmentItem: {
+        marginBottom: 16,
+    },
+    rowBetween: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    adjustmentValue: {
+        fontFamily: Fonts.Cormorant.Bold,
+        fontSize: 14,
+        color: Colors.light.gold,
+    },
+    slider: {
+        width: '100%',
+        height: 40,
+    },
+    colorPalette: {
+        paddingVertical: 10,
+        gap: 12,
+        paddingRight: 20,
+    },
+    colorSwatch: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        borderWidth: 2,
+        borderColor: '#eee',
+    },
+    selectedSwatch: {
+        borderColor: Colors.light.gold,
+        transform: [{ scale: 1.1 }],
+    },
+    previewDetail: {
+        fontSize: 16,
+        textAlign: 'center',
+    },
+    textPlate: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        alignSelf: 'center',
+        // Premium glass effect
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2,
+        shadowRadius: 15,
+        elevation: 8,
     },
 });

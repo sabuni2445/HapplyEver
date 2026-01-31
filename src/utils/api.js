@@ -621,4 +621,159 @@ export const loginWithCredentials = async (email, password) => {
   }
 };
 
+// Message APIs
+export const sendMessage = async (senderClerkId, receiverClerkId, content) => {
+  try {
+    const response = await api.post('/messages/send', { senderClerkId, receiverClerkId, content });
+    return response.data;
+  } catch (error) {
+    console.error("Error sending message:", error);
+    throw error;
+  }
+};
+
+export const getConversation = async (user1, user2) => {
+  try {
+    const response = await api.get(`/messages/conversation?user1=${user1}&user2=${user2}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching conversation:", error);
+    throw error;
+  }
+};
+
+export const getInbox = async (clerkId) => {
+  try {
+    const response = await api.get(`/messages/inbox/${clerkId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching inbox:", error);
+    throw error;
+  }
+};
+
+// Meeting APIs (Manager)
+export const requestMeetingByManager = async (managerClerkId, coupleId, meetingTime, purpose) => {
+  try {
+    const response = await api.post('/meetings/manager-request', {
+      managerClerkId,
+      coupleId,
+      meetingTime,
+      purpose
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error requesting meeting:", error);
+    throw error;
+  }
+};
+
+export const respondToMeeting = async (meetingId, status, reason) => {
+  try {
+    const response = await api.patch(`/meetings/${meetingId}/respond`, { status, reason });
+    return response.data;
+  } catch (error) {
+    console.error("Error responding to meeting:", error);
+    throw error;
+  }
+};
+
+export const getManagerMeetings = async (managerId) => {
+  try {
+    const response = await api.get(`/meetings/manager/${managerId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching manager meetings:", error);
+    throw error;
+  }
+};
+
+// Task Management APIs
+export const createTask = async (weddingId, title, description, category, assignedRole, assignedProtocolId, dueDate) => {
+  try {
+    const response = await api.post('/tasks/create', {
+      weddingId,
+      title,
+      description,
+      category,
+      assignedRole,
+      assignedProtocolId,
+      dueDate
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error creating task:", error);
+    throw error;
+  }
+};
+
+export const getTasksByWedding = async (weddingId) => {
+  try {
+    const response = await api.get(`/tasks/wedding/${weddingId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
+    throw error;
+  }
+};
+
+export const getTasksByProtocol = async (protocolId) => {
+  try {
+    const response = await api.get(`/tasks/protocol/${protocolId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching protocol tasks:", error);
+    throw error;
+  }
+};
+
+export const acceptTask = async (taskId) => {
+  try {
+    const response = await api.patch(`/tasks/${taskId}/accept`);
+    return response.data;
+  } catch (error) {
+    console.error("Error accepting task:", error);
+    throw error;
+  }
+};
+
+export const rejectTask = async (taskId, reason) => {
+  try {
+    const response = await api.patch(`/tasks/${taskId}/reject`, { reason });
+    return response.data;
+  } catch (error) {
+    console.error("Error rejecting task:", error);
+    throw error;
+  }
+};
+
+export const completeTask = async (taskId) => {
+  try {
+    const response = await api.patch(`/tasks/${taskId}/complete`);
+    return response.data;
+  } catch (error) {
+    console.error("Error completing task:", error);
+    throw error;
+  }
+};
+
+export const updateTaskStatus = async (taskId, status) => {
+  try {
+    const response = await api.patch(`/tasks/${taskId}/status`, { status });
+    return response.data;
+  } catch (error) {
+    console.error("Error updating task status:", error);
+    throw error;
+  }
+};
+
+export const deleteTask = async (taskId) => {
+  try {
+    await api.delete(`/tasks/${taskId}`);
+  } catch (error) {
+    console.error("Error deleting task:", error);
+    throw error;
+  }
+};
+
 export default api;

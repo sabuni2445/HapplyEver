@@ -15,7 +15,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/gallery")
-@CrossOrigin(origins = "${app.frontend.url:http://localhost:5173}")
 public class GalleryController {
     
     private final GalleryService galleryService;

@@ -1,7 +1,7 @@
 import { StyleSheet, View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
 import { useEffect, useState, useCallback } from 'react';
-import { getWeddingDetails, syncUserToDatabase } from '@/utils/api';
+import { getWeddingDetails, syncUserToDatabase, getServices, getVendorBookings } from '@/utils/api';
 import { useRouter } from 'expo-router';
 import { Colors, Fonts } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,21 +13,37 @@ export default function HomeScreen() {
   const [wedding, setWedding] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [daysLeft, setDaysLeft] = useState<{ days: number; hours: number; minutes: number } | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+  const [stats, setStats] = useState<{ services: number; pendingBookings: number; package: string } | null>(null);
 
   const loadData = async () => {
     if (user) {
       try {
         const dbUser = await syncUserToDatabase(user);
-        const role = dbUser?.user?.selectedRole || dbUser?.selectedRole || 'USER';
+        console.log("DEBUG: dbUser:", JSON.stringify(dbUser));
+        const userRole = dbUser?.user?.selectedRole || dbUser?.selectedRole || 'USER';
+        console.log("DEBUG: Determined userRole:", userRole);
+        setRole(userRole === 'USER' ? 'COUPLE' : userRole);
 
-        if (role === 'VENDOR') {
-          router.replace('/(tabs)/vendor');
+        if (userRole === 'VENDOR') {
+          const [vendorServices, vendorBookings] = await Promise.all([
+            getServices(user.id),
+            getVendorBookings(user.id)
+          ]);
+          setStats({
+            services: vendorServices.length,
+            pendingBookings: vendorBookings.filter((b: any) => b.status === 'PENDING').length,
+            package: dbUser?.user?.packageType || dbUser?.packageType || 'NORMAL'
+          });
           return;
-        } else if (role === 'PROTOCOL') {
+        } else if (userRole === 'PROTOCOL') {
           router.replace('/(tabs)/protocol');
           return;
-        } else if (role === 'MANAGER') {
+        } else if (userRole === 'MANAGER' || userRole === 'ADMIN') {
           router.replace('/(tabs)/management');
+          return;
+        } else if (userRole === 'ATTENDEE') {
+          router.replace('/(tabs)/attendee');
           return;
         }
 
@@ -83,10 +99,14 @@ export default function HomeScreen() {
       >
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>{wedding ? "My Wedding" : `Hello, ${user.firstName}!`}</Text>
-            <Text style={styles.subtitle}>{wedding ? "Your special day details" : "Welcome to your wedding dashboard"}</Text>
+            <Text style={styles.greeting}>
+              {role === 'VENDOR' ? `Vendor Portal` : (wedding ? "My Wedding" : `Hello, ${user.firstName}!`)}
+            </Text>
+            <Text style={styles.subtitle}>
+              {role === 'VENDOR' ? `Manage your business` : (wedding ? "Your special day details" : "Welcome to your wedding dashboard")}
+            </Text>
           </View>
-          {wedding && (
+          {role === 'COUPLE' && wedding && (
             <View style={styles.headerButtons}>
               <TouchableOpacity style={styles.headerButton} onPress={() => router.push('/wedding-form')}>
                 <IconSymbol name="pencil" size={16} color={Colors.light.text} />
@@ -100,102 +120,186 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {wedding ? (
-          <View style={styles.card}>
-            <Text style={styles.weddingTitle}>
-              {user.firstName} & {wedding.partnersName || "Partner"}
-            </Text>
-
-            {daysLeft !== null && (
-              <View style={styles.countdownWrapper}>
-                <LinearGradient
-                  colors={[Colors.light.gold, '#b8962e']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.countdownGradient}
-                >
-                  <Text style={styles.countdownTitle}>Countdown to Your Big Day</Text>
-                  <View style={styles.countdownGrid}>
-                    <View style={styles.countdownBox}>
-                      <Text style={styles.countdownNum}>{daysLeft.days}</Text>
-                      <Text style={styles.countdownUnit}>Days</Text>
-                    </View>
-                    <View style={styles.countdownBox}>
-                      <Text style={styles.countdownNum}>{daysLeft.hours}</Text>
-                      <Text style={styles.countdownUnit}>Hours</Text>
-                    </View>
-                    <View style={styles.countdownBox}>
-                      <Text style={styles.countdownNum}>{daysLeft.minutes}</Text>
-                      <Text style={styles.countdownUnit}>Minutes</Text>
-                    </View>
-                    <View style={styles.countdownBox}>
-                      <Text style={styles.countdownNum}>0</Text>
-                      <Text style={styles.countdownUnit}>Seconds</Text>
-                    </View>
-                  </View>
-                </LinearGradient>
+        {role === 'VENDOR' && stats ? (
+          <View style={styles.vendorStats}>
+            <LinearGradient
+              colors={[Colors.light.gold, '#b8962e']}
+              style={styles.packageCard}
+            >
+              <View style={styles.packageHeader}>
+                <IconSymbol name="star.fill" size={24} color="#fff" />
+                <Text style={styles.packageTitle}>{stats.package} Plan</Text>
               </View>
-            )}
+              <TouchableOpacity style={styles.upgradeBtn} onPress={() => router.push('/vendor/packages')}>
+                <Text style={styles.upgradeBtnText}>Upgrade Plan</Text>
+              </TouchableOpacity>
+            </LinearGradient>
 
-            <Text style={styles.dateLabel}>Wedding is on</Text>
-            <Text style={styles.date}>
-              {wedding.weddingDate ? new Date(wedding.weddingDate).toLocaleDateString(undefined, {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              }) : "Date not set"}
-            </Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statBox}>
+                <Text style={styles.statNum}>{stats.services}</Text>
+                <Text style={styles.statLabel}>Services</Text>
+              </View>
+              <View style={[styles.statBox, stats.pendingBookings > 0 && styles.activeStatBox]}>
+                <Text style={[styles.statNum, stats.pendingBookings > 0 && { color: '#fff' }]}>{stats.pendingBookings}</Text>
+                <Text style={[styles.statLabel, stats.pendingBookings > 0 && { color: '#fff' }]}>Pending Requests</Text>
+              </View>
+            </View>
           </View>
         ) : (
-          <View style={styles.card}>
-            <Text style={styles.infoText}>No wedding details found.</Text>
-            <Text style={styles.infoText}>Please set up your wedding on the website first.</Text>
-          </View>
+          wedding ? (
+            <View style={styles.card}>
+              <Text style={styles.weddingTitle}>
+                {user.firstName} & {wedding.partnersName || "Partner"}
+              </Text>
+
+              {daysLeft !== null && (
+                <View style={styles.countdownWrapper}>
+                  <LinearGradient
+                    colors={[Colors.light.gold, '#b8962e']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.countdownGradient}
+                  >
+                    <Text style={styles.countdownTitle}>Countdown to Your Big Day</Text>
+                    <View style={styles.countdownGrid}>
+                      <View style={styles.countdownBox}>
+                        <Text style={styles.countdownNum}>{daysLeft.days}</Text>
+                        <Text style={styles.countdownUnit}>Days</Text>
+                      </View>
+                      <View style={styles.countdownBox}>
+                        <Text style={styles.countdownNum}>{daysLeft.hours}</Text>
+                        <Text style={styles.countdownUnit}>Hours</Text>
+                      </View>
+                      <View style={styles.countdownBox}>
+                        <Text style={styles.countdownNum}>{daysLeft.minutes}</Text>
+                        <Text style={styles.countdownUnit}>Minutes</Text>
+                      </View>
+                      <View style={styles.countdownBox}>
+                        <Text style={styles.countdownNum}>0</Text>
+                        <Text style={styles.countdownUnit}>Seconds</Text>
+                      </View>
+                    </View>
+                  </LinearGradient>
+                </View>
+              )}
+
+              <Text style={styles.dateLabel}>Wedding is on</Text>
+              <Text style={styles.date}>
+                {wedding.weddingDate ? new Date(wedding.weddingDate).toLocaleDateString(undefined, {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                }) : "Date not set"}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.card}>
+              <Text style={styles.infoText}>No wedding details found.</Text>
+              <Text style={styles.infoText}>Please set up your wedding on the website first.</Text>
+            </View>
+          )
         )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
-            <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/wedding-form')}>
-              <LinearGradient
-                colors={['#fdf6f0', '#fff']}
-                style={styles.actionIconGradient}
-              >
-                <IconSymbol name="pencil" size={24} color={Colors.light.gold} />
-              </LinearGradient>
-              <Text style={styles.actionText}>Edit Wedding</Text>
-            </TouchableOpacity>
+            {role === 'VENDOR' ? (
+              <>
+                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/vendor')}>
+                  <LinearGradient
+                    colors={['#fdf6f0', '#fff']}
+                    style={styles.actionIconGradient}
+                  >
+                    <IconSymbol name="briefcase.fill" size={24} color={Colors.light.gold} />
+                  </LinearGradient>
+                  <Text style={styles.actionText}>My Services</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/wedding-card')}>
-              <LinearGradient
-                colors={['#fdf6f0', '#fff']}
-                style={styles.actionIconGradient}
-              >
-                <IconSymbol name="envelope" size={24} color={Colors.light.gold} />
-              </LinearGradient>
-              <Text style={styles.actionText}>Digital Card</Text>
-            </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/bookings')}>
+                  <LinearGradient
+                    colors={['#fdf6f0', '#fff']}
+                    style={styles.actionIconGradient}
+                  >
+                    <IconSymbol name="calendar.badge.clock" size={24} color={Colors.light.gold} />
+                  </LinearGradient>
+                  <Text style={styles.actionText}>Bookings</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/gallery')}>
-              <LinearGradient
-                colors={['#fdf6f0', '#fff']}
-                style={styles.actionIconGradient}
-              >
-                <IconSymbol name="photo" size={24} color={Colors.light.gold} />
-              </LinearGradient>
-              <Text style={styles.actionText}>Gallery</Text>
-            </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/vendor/packages')}>
+                  <LinearGradient
+                    colors={['#fdf6f0', '#fff']}
+                    style={styles.actionIconGradient}
+                  >
+                    <IconSymbol name="star.fill" size={24} color={Colors.light.gold} />
+                  </LinearGradient>
+                  <Text style={styles.actionText}>Packages</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/guests')}>
-              <LinearGradient
-                colors={['#fdf6f0', '#fff']}
-                style={styles.actionIconGradient}
-              >
-                <IconSymbol name="person.2.fill" size={24} color={Colors.light.gold} />
-              </LinearGradient>
-              <Text style={styles.actionText}>Guests</Text>
-            </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/profile')}>
+                  <LinearGradient
+                    colors={['#fdf6f0', '#fff']}
+                    style={styles.actionIconGradient}
+                  >
+                    <IconSymbol name="person.circle.fill" size={24} color={Colors.light.gold} />
+                  </LinearGradient>
+                  <Text style={styles.actionText}>Profile</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/wedding-form')}>
+                  <LinearGradient
+                    colors={['#fdf6f0', '#fff']}
+                    style={styles.actionIconGradient}
+                  >
+                    <IconSymbol name="pencil" size={24} color={Colors.light.gold} />
+                  </LinearGradient>
+                  <Text style={styles.actionText}>Edit Wedding</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/wedding-card')}>
+                  <LinearGradient
+                    colors={['#fdf6f0', '#fff']}
+                    style={styles.actionIconGradient}
+                  >
+                    <IconSymbol name="envelope" size={24} color={Colors.light.gold} />
+                  </LinearGradient>
+                  <Text style={styles.actionText}>Digital Card</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/gallery')}>
+                  <LinearGradient
+                    colors={['#fdf6f0', '#fff']}
+                    style={styles.actionIconGradient}
+                  >
+                    <IconSymbol name="photo" size={24} color={Colors.light.gold} />
+                  </LinearGradient>
+                  <Text style={styles.actionText}>Gallery</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/guests')}>
+                  <LinearGradient
+                    colors={['#fdf6f0', '#fff']}
+                    style={styles.actionIconGradient}
+                  >
+                    <IconSymbol name="person.2.fill" size={24} color={Colors.light.gold} />
+                  </LinearGradient>
+                  <Text style={styles.actionText}>Guests</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/meeting-request')}>
+                  <LinearGradient
+                    colors={['#fdf6f0', '#fff']}
+                    style={styles.actionIconGradient}
+                  >
+                    <IconSymbol name="calendar.badge.plus" size={24} color={Colors.light.gold} />
+                  </LinearGradient>
+                  <Text style={styles.actionText}>Request Meeting</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -388,6 +492,80 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.light.text,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  vendorStats: {
+    padding: 20,
+  },
+  packageCard: {
+    borderRadius: 24,
+    padding: 24,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    elevation: 4,
+    shadowColor: Colors.light.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  packageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  packageTitle: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 20,
+    color: '#fff',
+    textTransform: 'capitalize',
+  },
+  upgradeBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  upgradeBtnText: {
+    color: '#fff',
+    fontFamily: Fonts.Cormorant.Bold,
+    fontSize: 14,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.1)',
+    shadowColor: Colors.light.gold,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  activeStatBox: {
+    backgroundColor: Colors.light.gold,
+    borderColor: Colors.light.gold,
+  },
+  statNum: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 32,
+    color: Colors.light.gold,
+  },
+  statLabel: {
+    fontFamily: Fonts.Cormorant.Regular,
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+    marginTop: 4,
     textAlign: 'center',
   },
 });

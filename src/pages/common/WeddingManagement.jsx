@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { useSearchParams } from "react-router-dom";
-import { getWeddingDetails, getAssignmentByWedding, getUserByClerkId, getCoupleBookings, getServiceById, initializeChapaPayment, getWeddingById, getPaymentsByWedding, createPaymentSchedule, verifyChapaPayment } from "../../utils/api";
+import { getWeddingDetails, getAssignmentByWedding, getUserByClerkId, getCoupleBookings, getServiceById, initializeChapaPayment, getWeddingById, getPaymentsByWedding, createPaymentSchedule, verifyChapaPayment, sendMessage, getTasksByWedding, createTask, updateTaskStatus, deleteTask, acceptTask, rejectTask, completeTask } from "../../utils/api";
 import { Calendar, Video, MessageCircle, DollarSign, CheckCircle, Clock, X, MapPin, Users, RefreshCw, Briefcase, UserCheck } from "lucide-react";
 import CoupleSidebar from "../../components/CoupleSidebar";
 import ManagerSidebar from "../../components/ManagerSidebar";
@@ -26,6 +26,9 @@ export default function WeddingManagement({ role = "couple" }) {
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [newTask, setNewTask] = useState({ title: "", description: "", category: "GENERAL", assignedRole: "Manager" });
 
   useEffect(() => {
     // Check for DB-based login user in localStorage
@@ -124,7 +127,7 @@ export default function WeddingManagement({ role = "couple" }) {
       const maxRetries = 6; // Increased retries
 
       const checkPaymentStatus = () => {
-        console.log(`Checking payment status (attempt ${retryCount + 1}/${maxRetries})...`);
+        console.log(`Checking payment status(attempt ${retryCount + 1}/${maxRetries})...`);
         refreshPaymentData();
         retryCount++;
 
@@ -191,16 +194,18 @@ export default function WeddingManagement({ role = "couple" }) {
         setCouple({ clerkId: userId });
       } else if (role === "manager") {
         // For managers, get weddingId from URL params
+        // For managers, get weddingId from URL params
         if (!weddingIdParam) {
-          console.error("No weddingId in URL params for manager");
-          setIsLoading(false);
+          console.warn("No weddingId in URL params for manager - redirecting to dashboard");
+          // Use window.location as navigate might not be available consistently inside loadData if not passed
+          window.location.href = "/manager/dashboard";
           return;
         }
         try {
           const weddingId = parseInt(weddingIdParam);
           if (isNaN(weddingId)) {
             console.error("Invalid weddingId:", weddingIdParam);
-            setIsLoading(false);
+            window.location.href = "/manager/dashboard";
             return;
           }
           console.log("Loading wedding for manager, ID:", weddingId);
@@ -368,6 +373,16 @@ export default function WeddingManagement({ role = "couple" }) {
         } catch (error) {
           console.error("Failed to load bookings:", error);
         }
+
+        // Load tasks
+        if (weddingData.id) {
+          try {
+            const tasksData = await getTasksByWedding(weddingData.id);
+            setTasks(tasksData || []);
+          } catch (error) {
+            console.error("Failed to load tasks:", error);
+          }
+        }
       }
     } catch (error) {
       console.error("Failed to load data:", error);
@@ -442,6 +457,46 @@ export default function WeddingManagement({ role = "couple" }) {
           <h1>Wedding Management</h1>
           <p className="subtitle">{wedding.partnersName || "Wedding Details"}</p>
         </div>
+
+        {/* Quick Actions / Chat */}
+        {role === "manager" && couple && (
+          <div className="section-card" style={{ marginBottom: "2rem", background: "#fef3c7", border: "1px solid #d4af37" }}>
+            <div className="section-header" style={{ marginBottom: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#92400e" }}>
+                <MessageCircle size={24} />
+                <h2 style={{ margin: 0, fontSize: "1.2rem" }}>Quick Message to Couple</h2>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "1rem" }}>
+              <input
+                type="text"
+                id="quick-msg-input"
+                placeholder={`Message ${couple.firstName || "Couple"}...`}
+                style={{ flex: 1, padding: "0.75rem", borderRadius: "8px", border: "1px solid #d4af37" }}
+              />
+              <button
+                onClick={async () => {
+                  const input = document.getElementById("quick-msg-input");
+                  const msg = input.value;
+                  if (!msg.trim()) return;
+
+                  try {
+                    await sendMessage(userId, couple.clerkId, msg);
+                    alert("Message sent!");
+                    input.value = "";
+                  } catch (e) {
+                    console.error(e);
+                    alert("Failed to send message");
+                  }
+                }}
+                className="btn-primary"
+                style={{ padding: "0.75rem 1.5rem" }}
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Payment Overview */}
         <div className="section-card">
@@ -548,7 +603,7 @@ export default function WeddingManagement({ role = "couple" }) {
                       )}
                     </div>
                     <div className="schedule-status">
-                      <div className={`status-badge status-${payment.status.toLowerCase()}`}>
+                      <div className={`status - badge status - ${payment.status.toLowerCase()} `}>
                         {payment.status}
                       </div>
                       {payment.paidAmount > 0 && (
@@ -587,7 +642,7 @@ export default function WeddingManagement({ role = "couple" }) {
                                 return;
                               }
 
-                              const txRef = `wedding-${wedding.id}-payment-${payment.id}-${Date.now()}`;
+                              const txRef = `wedding - ${wedding.id} -payment - ${payment.id} -${Date.now()} `;
                               // Store txRef for verification after redirect
                               localStorage.setItem("lastTxRef", txRef);
 
@@ -599,7 +654,7 @@ export default function WeddingManagement({ role = "couple" }) {
                                 amount: payment.amount,
                                 txRef,
                                 coupleClerkId: userId,
-                                returnUrl: `${window.location.origin}/couple/wedding-management?payment=return&tx_ref=${txRef}`
+                                returnUrl: `${window.location.origin} /couple/wedding - management ? payment =return& tx_ref=${txRef} `
                               };
 
                               const result = await initializeChapaPayment(paymentData);
@@ -703,193 +758,322 @@ export default function WeddingManagement({ role = "couple" }) {
                     {meeting.type === "ONLINE" && meeting.status === "ACCEPTED" && (
                       <button
                         onClick={() => {
-                          const meetingRoom = `meeting-${userId}-${meeting.id}`.replace(/[^a-zA-Z0-9]/g, "");
+                          const meetingRoom = `meeting - ${userId} -${meeting.id} `.replace(/[^a-zA-Z0-9]/g, "");
                           window.open(`https://meet.jit.si/${meetingRoom}`, "_blank");
                         }}
                         className="btn-secondary"
                       >
                         Join Meeting
+                      </button >
+                    )}
+                  </div >
+                </div >
+              ))}
+            </div >
+          )}
+        </div >
+        {/* Wedding Team Section */}
+        {
+          (manager || protocol) && (
+            <div className="section-card">
+              <div className="section-header">
+                <Users size={24} color="#2563eb" />
+                <h2>Wedding Team</h2>
+              </div>
+              <div className="team-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1.5rem", marginTop: "1rem" }}>
+                {manager && (
+                  <div className="team-member-card" style={{ padding: "1.5rem", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+                      <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#d4af37", display: "flex", alignItems: "center", justifyCenter: "center", color: "white" }}>
+                        <Briefcase size={24} />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0 }}>{manager.firstName} {manager.lastName}</h4>
+                        <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>Wedding Manager</p>
+                      </div>
+                    </div>
+                    <div className="team-actions" style={{ display: "flex", gap: "0.5rem" }}>
+                      <button onClick={() => window.open(`mailto:${manager.email}`, "_blank")} className="btn-secondary btn-small" style={{ flex: 1 }}>Email</button>
+                      <button onClick={() => {
+                        const meetingRoom = `manager-${userId}-${manager.clerkId}`.replace(/[^a-zA-Z0-9]/g, "");
+                        window.open(`https://meet.jit.si/${meetingRoom}`, "_blank");
+                      }} className="btn-primary btn-small" style={{ flex: 1 }}>Meet</button>
+                    </div>
+                  </div>
+                )}
+                {protocol && (
+                  <div className="team-member-card" style={{ padding: "1.5rem", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+                      <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#10b981", display: "flex", alignItems: "center", justifyCenter: "center", color: "white" }}>
+                        <UserCheck size={24} />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0 }}>{protocol.firstName} {protocol.lastName}</h4>
+                        <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>Protocol Officer</p>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: "1rem", padding: "0.5rem", background: "#d1fae5", borderRadius: "8px", textAlign: "center" }}>
+                      <span style={{ fontSize: "0.9rem", fontWeight: "600", color: "#065f46" }}>Job: {protocol.job || "General Support"}</span>
+                    </div>
+                    <div className="team-actions" style={{ display: "flex", gap: "0.5rem" }}>
+                      <button onClick={() => window.open(`mailto:${protocol.email}`, "_blank")} className="btn-secondary btn-small" style={{ flex: 1 }}>Email</button>
+                      {role === "manager" && (
+                        <button onClick={() => navigate("/manager/dashboard")} className="btn-outline btn-small" style={{ flex: 1 }}>Reassign</button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        }
+
+        {/* Task List Section */}
+        <div className="section-card">
+          <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <CheckCircle size={24} color="#10b981" />
+              <h2>Wedding Task List</h2>
+            </div>
+            {role === "manager" && (
+              <button onClick={() => setShowTaskModal(true)} className="btn-primary" style={{ padding: "0.5rem 1rem" }}>
+                + Add Task
+              </button>
+            )}
+          </div>
+          <div className="task-list" style={{ marginTop: "1rem" }}>
+            {tasks.length === 0 ? (
+              <p style={{ color: "#6b7280", textAlign: "center", padding: "2rem" }}>No tasks yet</p>
+            ) : (
+              tasks.map(task => (
+                <div key={task.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem", borderBottom: "1px solid #f1f5f9" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                    <div
+                      onClick={async () => {
+                        const newStatus = task.status === "COMPLETED" ? "PENDING" : "COMPLETED";
+                        try {
+                          await updateTaskStatus(task.id, newStatus);
+                          setTasks(tasks.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
+                        } catch (e) { console.error(e); }
+                      }}
+                      style={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "6px",
+                        border: "2px solid #d1d5db",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: task.status === "COMPLETED" ? "#10b981" : "transparent",
+                        borderColor: task.status === "COMPLETED" ? "#10b981" : "#d1d5db",
+                        cursor: "pointer"
+                      }}>
+                      {task.status === "COMPLETED" && <CheckCircle size={16} color="white" />}
+                    </div>
+                    <div>
+                      <span style={{
+                        textDecoration: task.status === "COMPLETED" ? "line-through" : "none",
+                        color: task.status === "COMPLETED" ? "#94a3b8" : "#1e293b",
+                        fontWeight: "500",
+                        display: "block"
+                      }}>
+                        {task.title}
+                      </span>
+                      {task.description && (
+                        <span style={{ fontSize: "0.85rem", color: "#64748b" }}>{task.description}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                    <span style={{
+                      padding: "0.25rem 0.75rem",
+                      borderRadius: "12px",
+                      fontSize: "0.75rem",
+                      fontWeight: "600",
+                      background: task.assignedRole === "Manager" ? "#dbeafe" : task.assignedRole === "Couple" ? "#fef3c7" : "#d1fae5",
+                      color: task.assignedRole === "Manager" ? "#1e40af" : task.assignedRole === "Couple" ? "#92400e" : "#065f46"
+                    }}>
+                      {task.assignedRole}
+                    </span>
+                    {role === "manager" && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await deleteTask(task.id);
+                            setTasks(tasks.filter(t => t.id !== task.id));
+                          } catch (e) { console.error(e); }
+                        }}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444" }}
+                      >
+                        <X size={18} />
                       </button>
                     )}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-        {/* Wedding Team Section */}
-        {(manager || protocol) && (
-          <div className="section-card">
-            <div className="section-header">
-              <Users size={24} color="#2563eb" />
-              <h2>Wedding Team</h2>
-            </div>
-            <div className="team-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1.5rem", marginTop: "1rem" }}>
-              {manager && (
-                <div className="team-member-card" style={{ padding: "1.5rem", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
-                    <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#d4af37", display: "flex", alignItems: "center", justifyCenter: "center", color: "white" }}>
-                      <Briefcase size={24} />
-                    </div>
-                    <div>
-                      <h4 style={{ margin: 0 }}>{manager.firstName} {manager.lastName}</h4>
-                      <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>Wedding Manager</p>
-                    </div>
-                  </div>
-                  <div className="team-actions" style={{ display: "flex", gap: "0.5rem" }}>
-                    <button onClick={() => window.open(`mailto:${manager.email}`, "_blank")} className="btn-secondary btn-small" style={{ flex: 1 }}>Email</button>
-                    <button onClick={() => {
-                      const meetingRoom = `manager-${userId}-${manager.clerkId}`.replace(/[^a-zA-Z0-9]/g, "");
-                      window.open(`https://meet.jit.si/${meetingRoom}`, "_blank");
-                    }} className="btn-primary btn-small" style={{ flex: 1 }}>Meet</button>
-                  </div>
-                </div>
-              )}
-              {protocol && (
-                <div className="team-member-card" style={{ padding: "1.5rem", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
-                    <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#10b981", display: "flex", alignItems: "center", justifyCenter: "center", color: "white" }}>
-                      <UserCheck size={24} />
-                    </div>
-                    <div>
-                      <h4 style={{ margin: 0 }}>{protocol.firstName} {protocol.lastName}</h4>
-                      <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>Protocol Officer</p>
-                    </div>
-                  </div>
-                  <div style={{ marginBottom: "1rem", padding: "0.5rem", background: "#d1fae5", borderRadius: "8px", textAlign: "center" }}>
-                    <span style={{ fontSize: "0.9rem", fontWeight: "600", color: "#065f46" }}>Job: {protocol.job || "General Support"}</span>
-                  </div>
-                  <div className="team-actions" style={{ display: "flex", gap: "0.5rem" }}>
-                    <button onClick={() => window.open(`mailto:${protocol.email}`, "_blank")} className="btn-secondary btn-small" style={{ flex: 1 }}>Email</button>
-                    {role === "manager" && (
-                      <button onClick={() => navigate("/manager/dashboard")} className="btn-outline btn-small" style={{ flex: 1 }}>Reassign</button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Task List Section */}
-        <div className="section-card">
-          <div className="section-header">
-            <CheckCircle size={24} color="#10b981" />
-            <h2>Wedding Task List</h2>
-          </div>
-          <div className="task-list" style={{ marginTop: "1rem" }}>
-            {[
-              { id: 1, task: "Finalize Guest List", status: "COMPLETED", owner: "Couple" },
-              { id: 2, task: "Confirm Catering Menu", status: "PENDING", owner: "Manager" },
-              { id: 3, task: "Assign Protocol Officers", status: "COMPLETED", owner: "Manager" },
-              { id: 4, task: "Review Photography Schedule", status: "PENDING", owner: "Couple" },
-              { id: 5, task: "Setup Venue Decorations", status: "PENDING", owner: "Protocol" },
-            ].map(task => (
-              <div key={task.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem", borderBottom: "1px solid #f1f5f9" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                  <div style={{
-                    width: "24px",
-                    height: "24px",
-                    borderRadius: "6px",
-                    border: "2px solid #d1d5db",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: task.status === "COMPLETED" ? "#10b981" : "transparent",
-                    borderColor: task.status === "COMPLETED" ? "#10b981" : "#d1d5db"
-                  }}>
-                    {task.status === "COMPLETED" && <CheckCircle size={16} color="white" />}
-                  </div>
-                  <span style={{
-                    textDecoration: task.status === "COMPLETED" ? "line-through" : "none",
-                    color: task.status === "COMPLETED" ? "#94a3b8" : "#1e293b",
-                    fontWeight: "500"
-                  }}>
-                    {task.task}
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                  <span style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem", background: "#f1f5f9", borderRadius: "4px", color: "#64748b" }}>{task.owner}</span>
-                  <span style={{
-                    fontSize: "0.75rem",
-                    fontWeight: "700",
-                    color: task.status === "COMPLETED" ? "#059669" : "#d97706"
-                  }}>
-                    {task.status}
-                  </span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
         {/* Contact Section */}
-        {((role === "couple" && manager) || (role === "manager" && couple)) && (
-          <div className="section-card">
-            <div className="section-header">
-              <MessageCircle size={24} color="#d4af37" />
-              <h2>Contact</h2>
-            </div>
+        {
+          ((role === "couple" && manager) || (role === "manager" && couple)) && (
+            <div className="section-card">
+              <div className="section-header">
+                <MessageCircle size={24} color="#d4af37" />
+                <h2>Contact</h2>
+              </div>
 
-            <div className="contact-info">
-              {role === "couple" && manager && (
-                <>
-                  <h4>Your Wedding Manager</h4>
-                  <p>{manager.firstName} {manager.lastName}</p>
-                  <p>{manager.email}</p>
-                  <div className="contact-actions">
-                    <button
-                      onClick={() => window.open(`mailto:${manager.email}`, "_blank")}
-                      className="btn-secondary"
-                    >
-                      <MessageCircle size={18} />
-                      Send Email
-                    </button>
-                    <button
-                      onClick={() => {
-                        const meetingRoom = `manager-${userId}-${manager.clerkId}`.replace(/[^a-zA-Z0-9]/g, "");
-                        window.open(`https://meet.jit.si/${meetingRoom}`, "_blank");
-                      }}
-                      className="btn-secondary"
-                    >
-                      <Video size={18} />
-                      Video Call
-                    </button>
-                  </div>
-                </>
-              )}
+              <div className="contact-info">
+                {role === "couple" && manager && (
+                  <>
+                    <h4>Your Wedding Manager</h4>
+                    <p>{manager.firstName} {manager.lastName}</p>
+                    <p>{manager.email}</p>
+                    <div className="contact-actions">
+                      <button
+                        onClick={() => window.open(`mailto:${manager.email}`, "_blank")}
+                        className="btn-secondary"
+                      >
+                        <MessageCircle size={18} />
+                        Send Email
+                      </button>
+                      <button
+                        onClick={() => {
+                          const meetingRoom = `manager-${userId}-${manager.clerkId}`.replace(/[^a-zA-Z0-9]/g, "");
+                          window.open(`https://meet.jit.si/${meetingRoom}`, "_blank");
+                        }}
+                        className="btn-secondary"
+                      >
+                        <Video size={18} />
+                        Video Call
+                      </button>
+                    </div>
+                  </>
+                )}
 
-              {role === "manager" && couple && (
-                <>
-                  <h4>Couple</h4>
-                  <p>{couple.firstName} {couple.lastName}</p>
-                  <p>{couple.email}</p>
-                  <div className="contact-actions">
-                    <button
-                      onClick={() => window.open(`mailto:${couple.email}`, "_blank")}
-                      className="btn-secondary"
-                    >
-                      <MessageCircle size={18} />
-                      Send Email
-                    </button>
-                    <button
-                      onClick={() => {
-                        const meetingRoom = `manager-${userId}-${couple.clerkId}`.replace(/[^a-zA-Z0-9]/g, "");
-                        window.open(`https://meet.jit.si/${meetingRoom}`, "_blank");
-                      }}
-                      className="btn-secondary"
-                    >
-                      <Video size={18} />
-                      Video Call
-                    </button>
-                  </div>
-                </>
-              )}
+                {role === "manager" && couple && (
+                  <>
+                    <h4>Couple</h4>
+                    <p>{couple.firstName} {couple.lastName}</p>
+                    <p>{couple.email}</p>
+                    <div className="contact-actions">
+                      <button
+                        onClick={() => window.open(`mailto:${couple.email}`, "_blank")}
+                        className="btn-secondary"
+                      >
+                        <MessageCircle size={18} />
+                        Send Email
+                      </button>
+                      <button
+                        onClick={() => {
+                          const meetingRoom = `manager-${userId}-${couple.clerkId}`.replace(/[^a-zA-Z0-9]/g, "");
+                          window.open(`https://meet.jit.si/${meetingRoom}`, "_blank");
+                        }}
+                        className="btn-secondary"
+                      >
+                        <Video size={18} />
+                        Video Call
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
+          )
+        }
+
+        {/* Task Creation Modal */}
+        {
+          showTaskModal && (
+            <div className="modal-overlay" onClick={() => setShowTaskModal(false)}>
+              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+                  <h2 style={{ margin: 0, fontFamily: "Playfair Display" }}>Add New Task</h2>
+                  <button onClick={() => setShowTaskModal(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={20} /></button>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                  <div className="form-group">
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Task Title</label>
+                    <input
+                      type="text"
+                      value={newTask.title}
+                      onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                      placeholder="e.g. Setup VIP Section"
+                      style={{ width: "100%", padding: "0.75rem", borderRadius: "8px", border: "1px solid #e2e8f0" }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Description</label>
+                    <textarea
+                      value={newTask.description}
+                      onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                      rows={3}
+                      placeholder="Task details..."
+                      style={{ width: "100%", padding: "0.75rem", borderRadius: "8px", border: "1px solid #e2e8f0" }}
+                    />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                    <div className="form-group">
+                      <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Category</label>
+                      <select
+                        className="form-select"
+                        value={newTask.category}
+                        onChange={(e) => setNewTask({ ...newTask, category: e.target.value })}
+                        style={{ width: "100%", padding: "0.75rem", borderRadius: "8px", border: "1px solid #e2e8f0" }}
+                      >
+                        <option value="GENERAL">General</option>
+                        <option value="VIP">VIP</option>
+                        <option value="LOGISTICS">Logistics</option>
+                        <option value="CATERING">Catering</option>
+                        <option value="SECURITY">Security</option>
+                        <option value="QR_CODE">QR Code</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Assigned To</label>
+                      <select
+                        className="form-select"
+                        value={newTask.assignedRole}
+                        onChange={(e) => setNewTask({ ...newTask, assignedRole: e.target.value })}
+                        style={{ width: "100%", padding: "0.75rem", borderRadius: "8px", border: "1px solid #e2e8f0" }}
+                      >
+                        <option value="Manager">Manager</option>
+                        <option value="Couple">Couple</option>
+                        <option value="Protocol">Protocol</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    className="btn-primary"
+                    onClick={async () => {
+                      if (!newTask.title.trim()) {
+                        alert("Please enter a task title");
+                        return;
+                      }
+                      try {
+                        const task = await createTask(wedding.id, newTask.title, newTask.description, newTask.category, newTask.assignedRole, null);
+                        setTasks([...tasks, task]);
+                        setShowTaskModal(false);
+                        setNewTask({ title: "", description: "", category: "GENERAL", assignedRole: "Manager" });
+                      } catch (e) {
+                        console.error(e);
+                        alert("Failed to create task");
+                      }
+                    }}
+                    style={{ marginTop: "1rem", padding: "1rem" }}
+                  >
+                    Create Task
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        }
+      </div >
+    </div >
   );
 }
 

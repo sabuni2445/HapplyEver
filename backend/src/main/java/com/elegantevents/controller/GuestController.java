@@ -14,7 +14,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/guests")
-@CrossOrigin(origins = "${app.frontend.url:http://localhost:5173}")
 public class GuestController {
     
     private final GuestService guestService;

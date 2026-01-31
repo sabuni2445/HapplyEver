@@ -14,7 +14,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/weddings")
-@CrossOrigin(origins = "${app.frontend.url:http://localhost:5173}")
 public class WeddingController {
     
     private final WeddingService weddingService;

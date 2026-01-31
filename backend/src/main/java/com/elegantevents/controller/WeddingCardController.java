@@ -13,7 +13,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/wedding-cards")
-@CrossOrigin(origins = "${app.frontend.url:http://localhost:5173}")
 public class WeddingCardController {
     
     private final WeddingCardService weddingCardService;

@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -20,11 +21,22 @@ export default function TabLayout() {
         try {
           const dbUser = await getUserFromDatabase(user.id);
           const userRole = dbUser?.selectedRole || 'USER';
-          // Map backend USER role to frontend COUPLE role if that's what's expected
           setRole(userRole === 'USER' ? 'COUPLE' : userRole);
         } catch (error) {
-          console.error("Error loading user role:", error);
+          console.error("Error loading user role from Clerk session:", error);
           setRole('COUPLE');
+        }
+      } else {
+        // Fallback to backend-only session
+        try {
+          const userData = await AsyncStorage.getItem('user');
+          if (userData) {
+            const parsedUser = JSON.parse(userData);
+            const userRole = parsedUser.selectedRole || parsedUser.role || 'COUPLE';
+            setRole(userRole === 'USER' ? 'COUPLE' : userRole);
+          }
+        } catch (error) {
+          console.error("Error loading user role from local storage:", error);
         }
       }
     };
@@ -82,7 +94,7 @@ export default function TabLayout() {
         options={{
           title: 'Guests',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
-          href: role === 'COUPLE' ? '/guests' : null,
+          href: role === 'COUPLE' ? '/(tabs)/guests' : null,
         }}
       />
       <Tabs.Screen
@@ -90,15 +102,23 @@ export default function TabLayout() {
         options={{
           title: 'Protocol',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="checkmark.shield.fill" color={color} />,
-          href: role === 'PROTOCOL' ? '/protocol' : null,
+          href: role === 'PROTOCOL' ? '/(tabs)/protocol' : null,
         }}
       />
       <Tabs.Screen
         name="vendor"
         options={{
-          title: 'Vendor',
+          title: role === 'VENDOR' ? 'My Services' : 'Vendor',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="briefcase.fill" color={color} />,
-          href: role === 'VENDOR' ? '/vendor' : null,
+          href: role === 'VENDOR' ? '/(tabs)/vendor' : null,
+        }}
+      />
+      <Tabs.Screen
+        name="bookings"
+        options={{
+          title: 'Bookings',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="calendar.badge.clock" color={color} />,
+          href: role === 'VENDOR' ? '/(tabs)/bookings' : null,
         }}
       />
       <Tabs.Screen
@@ -106,6 +126,7 @@ export default function TabLayout() {
         options={{
           title: 'Attendee',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="qrcode" color={color} />,
+          href: role === 'VENDOR' ? null : '/(tabs)/attendee',
         }}
       />
       <Tabs.Screen

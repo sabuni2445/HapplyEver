@@ -13,7 +13,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/services")
-@CrossOrigin(origins = "${app.frontend.url:http://localhost:5173}")
 public class ServiceController {
     
     private final ServiceService serviceService;

@@ -9,7 +9,10 @@ export interface User {
     firstName: string;
     lastName: string;
     role: 'COUPLE' | 'VENDOR' | 'ADMIN' | 'MANAGER' | 'PROTOCOL';
+    selectedRole?: 'COUPLE' | 'VENDOR' | 'ADMIN' | 'MANAGER' | 'PROTOCOL';
 }
+
+const SESSION_TYPE_KEY = 'auth_session_type'; // 'clerk' or 'backend'
 
 /**
  * Get role-based dashboard route
@@ -45,13 +48,21 @@ export const getUserByClerkId = async (clerkId: string): Promise<User | null> =>
 /**
  * Store user data in AsyncStorage
  */
-export const storeUserData = async (user: User): Promise<void> => {
+export const storeUserData = async (user: User, sessionType: 'clerk' | 'backend' = 'clerk'): Promise<void> => {
     try {
         await AsyncStorage.setItem('user', JSON.stringify(user));
-        await AsyncStorage.setItem('userRole', user.role);
+        await AsyncStorage.setItem('userRole', user.selectedRole || user.role);
+        await AsyncStorage.setItem(SESSION_TYPE_KEY, sessionType);
     } catch (error) {
         console.error('Error storing user data:', error);
     }
+};
+
+/**
+ * Get stored session type
+ */
+export const getStoredSessionType = async (): Promise<string | null> => {
+    return await AsyncStorage.getItem(SESSION_TYPE_KEY);
 };
 
 /**
