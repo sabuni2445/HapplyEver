@@ -52,6 +52,10 @@ public class WeddingCardService {
         if (request.getFontFamily() != null) card.setFontFamily(request.getFontFamily());
         if (request.getTextAlign() != null) card.setTextAlign(request.getTextAlign());
         if (request.getOverlayOpacity() != null) card.setOverlayOpacity(request.getOverlayOpacity());
+        if (request.getResizeMode() != null) card.setResizeMode(request.getResizeMode());
+        if (request.getPlateType() != null) card.setPlateType(request.getPlateType());
+        if (request.getPlateColor() != null) card.setPlateColor(request.getPlateColor());
+        if (request.getBackgroundScale() != null) card.setBackgroundScale(request.getBackgroundScale());
         
         return weddingCardRepository.save(card);
     }

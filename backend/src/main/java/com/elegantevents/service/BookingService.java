@@ -1,5 +1,6 @@
 package com.elegantevents.service;
 
+import com.elegantevents.dto.BookingDTO;
 import com.elegantevents.dto.BookingRequest;
 import com.elegantevents.model.Booking;
 import com.elegantevents.model.User;
@@ -56,13 +57,17 @@ public class BookingService {
     }
     
     @Transactional(readOnly = true)
-    public List<Booking> getBookingsByCouple(String coupleClerkId) {
-        return bookingRepository.findByCoupleClerkId(coupleClerkId);
+    public List<BookingDTO> getBookingsByCouple(String coupleClerkId) {
+        return bookingRepository.findByCoupleClerkId(coupleClerkId).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
     
     @Transactional(readOnly = true)
-    public List<Booking> getBookingsByVendor(String vendorClerkId) {
-        return bookingRepository.findByVendorClerkId(vendorClerkId);
+    public List<BookingDTO> getBookingsByVendor(String vendorClerkId) {
+        return bookingRepository.findByVendorClerkId(vendorClerkId).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
     
     public Booking updateBookingStatus(Long bookingId, String vendorClerkId, Booking.BookingStatus status) {
@@ -102,7 +107,7 @@ public class BookingService {
     }
     
     @Transactional(readOnly = true)
-    public Booking getBookingById(Long bookingId, String clerkId) {
+    public BookingDTO getBookingById(Long bookingId, String clerkId) {
         // Check if user is couple or vendor
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
@@ -111,7 +116,29 @@ public class BookingService {
             throw new RuntimeException("Unauthorized access to booking");
         }
         
-        return booking;
+        return convertToDTO(booking);
+    }
+
+    private BookingDTO convertToDTO(Booking booking) {
+        com.elegantevents.model.Service service = serviceRepository.findById(booking.getServiceId()).orElse(null);
+        User couple = userRepository.findByClerkId(booking.getCoupleClerkId()).orElse(null);
+        
+        return BookingDTO.builder()
+                .id(booking.getId())
+                .serviceId(booking.getServiceId())
+                .serviceName(service != null ? service.getServiceName() : "Unknown Service")
+                .servicePrice(service != null ? service.getPrice() : 0.0)
+                .serviceDescription(service != null ? service.getDescription() : "")
+                .serviceImageUrl(service != null ? service.getImageUrl() : null)
+                .vendorClerkId(booking.getVendorClerkId())
+                .coupleClerkId(booking.getCoupleClerkId())
+                .coupleName(couple != null ? (couple.getFirstName() + " " + couple.getLastName()) : "Valued Couple")
+                .status(booking.getStatus())
+                .eventDate(booking.getEventDate())
+                .eventTime(booking.getEventTime())
+                .location(booking.getLocation())
+                .specialRequests(booking.getSpecialRequests())
+                .build();
     }
     
     private void updateWeddingWithService(Booking booking, com.elegantevents.model.Service service) {

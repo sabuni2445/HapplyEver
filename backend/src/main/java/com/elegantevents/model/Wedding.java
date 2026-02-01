@@ -16,6 +16,12 @@ import java.time.LocalTime;
 @AllArgsConstructor
 public class Wedding {
     
+    public enum WeddingStatus {
+        PLANNING,
+        ONGOING,
+        COMPLETED
+    }
+    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -67,6 +73,10 @@ public class Wedding {
     
     @Column(name = "additional_notes", columnDefinition = "TEXT")
     private String additionalNotes;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private WeddingStatus status = WeddingStatus.PLANNING;
     
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

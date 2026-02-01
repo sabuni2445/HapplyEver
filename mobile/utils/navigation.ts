@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://localhost:8080/api';
+const API_URL = 'http://10.0.2.2:8080/api';
 
 export interface User {
     id: number;
@@ -19,13 +19,13 @@ const SESSION_TYPE_KEY = 'auth_session_type'; // 'clerk' or 'backend'
  */
 export const getRoleDashboard = (role: string): string => {
     const dashboards: Record<string, string> = {
-        'COUPLE': '/(tabs)/couple-dashboard',
-        'VENDOR': '/(tabs)/vendor-dashboard',
-        'ADMIN': '/(tabs)/admin-dashboard',
-        'MANAGER': '/(tabs)/manager-dashboard',
-        'PROTOCOL': '/(tabs)/protocol-dashboard'
+        'COUPLE': '/',
+        'VENDOR': '/vendor',
+        'ADMIN': '/management',
+        'MANAGER': '/management',
+        'PROTOCOL': '/protocol'
     };
-    return dashboards[role] || '/(tabs)/couple-dashboard';
+    return dashboards[role] || '/';
 };
 
 /**

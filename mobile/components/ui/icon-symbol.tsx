@@ -64,6 +64,10 @@ const MAPPING = {
   'list.bullet.clipboard.fill': 'assignment',
   'star.bubble.fill': 'rate-review',
   'shield.fill': 'security',
+  'checkmark.seal.fill': 'verified',
+  'checkmark': 'check',
+  'calendar.badge.plus': 'add-task',
+  'clock': 'access-time',
 } as IconMapping;
 
 /**

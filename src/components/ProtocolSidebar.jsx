@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useClerk } from "@clerk/clerk-react";
-import { QrCode, Settings, LogOut, User } from "lucide-react";
+import { QrCode, Settings, LogOut, User, CheckCircle } from "lucide-react";
 
 export default function ProtocolSidebar() {
   const navigate = useNavigate();
@@ -11,6 +11,7 @@ export default function ProtocolSidebar() {
 
   const menuItems = [
     { path: "/protocol/dashboard", icon: QrCode, label: "Scanner" },
+    { path: "/protocol/tasks", icon: CheckCircle, label: "Missions" },
     { path: "/protocol/profile", icon: User, label: "Profile" },
     { path: "/protocol/settings", icon: Settings, label: "Settings" },
   ];

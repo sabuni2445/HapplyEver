@@ -1,7 +1,7 @@
 .profile-page {
   min-height: 100vh;
   background: linear-gradient(135deg, #fdf6f0 0%, #fff9f3 100%);
-  padding: 2rem;
+  padding: 0;
 }
 
 .profile-container {
@@ -162,11 +162,157 @@
   }
 }
 
+.manager-badge,
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+}
+
+.manager-badge {
+  background: #fdfaf2;
+  border: 1px solid #d4af37;
+  color: #d4af37;
+}
+
+.admin-badge {
+  background: #f5f3ff;
+  border: 1px solid #7c3aed;
+  color: #7c3aed;
+}
 
 
+.manager-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin: 2rem 0;
+}
 
+.stat-pill {
+  padding: 1rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: transform 0.2s;
+}
 
+.stat-pill:hover {
+  transform: translateY(-3px);
+}
 
+.stat-pill.red {
+  background: #fee2e2;
+  color: #991b1b;
+}
 
+.stat-pill.gold {
+  background: #fef3c7;
+  color: #92400e;
+}
 
+.stat-pill.purple {
+  background: #f3e8ff;
+  color: #6b21a8;
+}
 
+.premium-stats-section {
+  margin: 2rem 0;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.premium-card {
+  position: relative;
+  overflow: hidden;
+  padding: 1.5rem;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  color: white;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.premium-card:hover {
+  transform: translateY(-5px);
+}
+
+.premium-card.purple {
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+}
+
+.premium-card.gold {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.premium-card.red {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+}
+
+.p-icon {
+  background: rgba(255, 255, 255, 0.2);
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.p-content {
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
+}
+
+.p-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.9;
+  font-weight: 600;
+}
+
+.p-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.p-value small {
+  font-size: 0.8rem;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.p-bg-icon {
+  position: absolute;
+  right: -10px;
+  bottom: -10px;
+  opacity: 0.1;
+  transform: rotate(-15deg);
+}
+
+.p-bg-icon svg {
+  width: 80px;
+  height: 80px;
+}
+
+.header-with-badge {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}

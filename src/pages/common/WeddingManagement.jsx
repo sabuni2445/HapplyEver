@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/clerk-react";
-import { useSearchParams } from "react-router-dom";
-import { getWeddingDetails, getAssignmentByWedding, getUserByClerkId, getCoupleBookings, getServiceById, initializeChapaPayment, getWeddingById, getPaymentsByWedding, createPaymentSchedule, verifyChapaPayment, sendMessage, getTasksByWedding, createTask, updateTaskStatus, deleteTask, acceptTask, rejectTask, completeTask } from "../../utils/api";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { getWeddingDetails, getAssignmentByWedding, getUserByClerkId, getUsersByRole, getCoupleBookings, getServiceById, initializeChapaPayment, getWeddingById, getPaymentsByWedding, createPaymentSchedule, verifyChapaPayment, sendMessage, getTasksByWedding, createTask, updateTaskStatus, deleteTask, acceptTask, rejectTask, completeTask, getGuestsByWeddingId, completeWedding } from "../../utils/api";
 import { Calendar, Video, MessageCircle, DollarSign, CheckCircle, Clock, X, MapPin, Users, RefreshCw, Briefcase, UserCheck } from "lucide-react";
 import CoupleSidebar from "../../components/CoupleSidebar";
 import ManagerSidebar from "../../components/ManagerSidebar";
@@ -10,7 +10,9 @@ import "./WeddingManagement.css";
 export default function WeddingManagement({ role = "couple" }) {
   const { userId: clerkUserId } = useAuth();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const weddingIdParam = searchParams.get("weddingId");
+  // Refreshed version: v2.0.5 - Ensures couple/wedding state sync
 
   // Get userId from Clerk or from localStorage (for DB-based login)
   const [userId, setUserId] = useState(null);
@@ -27,8 +29,22 @@ export default function WeddingManagement({ role = "couple" }) {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [tasks, setTasks] = useState([]);
+  const [guests, setGuests] = useState([]);
   const [showTaskModal, setShowTaskModal] = useState(false);
-  const [newTask, setNewTask] = useState({ title: "", description: "", category: "GENERAL", assignedRole: "Manager" });
+  const [newTask, setNewTask] = useState({ title: "", description: "", category: "GENERAL", assignedRole: "MANAGER", assignedProtocolId: null });
+  const [availableProtocols, setAvailableProtocols] = useState([]);
+  const [completionData, setCompletionData] = useState({ rating: 5, feedback: "" });
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [showManagerInput, setShowManagerInput] = useState(false);
+  const [managerMessage, setManagerMessage] = useState("");
+  const [showProtocolInput, setShowProtocolInput] = useState(false);
+  const [protocolMessage, setProtocolMessage] = useState("");
+  const [showCoupleInput, setShowCoupleInput] = useState(false);
+  const [coupleMessage, setCoupleMessage] = useState("");
+  const [meetingPurpose, setMeetingPurpose] = useState("");
+  const [meetingTime, setMeetingTime] = useState("");
+  const [isSubmittingMeeting, setIsSubmittingMeeting] = useState(false);
 
   useEffect(() => {
     // Check for DB-based login user in localStorage
@@ -257,6 +273,16 @@ export default function WeddingManagement({ role = "couple" }) {
               const coupleData = await getUserByClerkId(weddingData.clerkId);
               setCouple(coupleData);
             }
+
+            // Load available protocols for task assignment
+            if (role === "manager") {
+              try {
+                const protocols = await getUsersByRole("PROTOCOL");
+                setAvailableProtocols(protocols);
+              } catch (error) {
+                console.error("Failed to load protocols:", error);
+              }
+            }
           } catch (error) {
             console.error("Failed to load assignment:", error);
           }
@@ -374,13 +400,17 @@ export default function WeddingManagement({ role = "couple" }) {
           console.error("Failed to load bookings:", error);
         }
 
-        // Load tasks
+        // Load tasks and guests
         if (weddingData.id) {
           try {
-            const tasksData = await getTasksByWedding(weddingData.id);
+            const [tasksData, guestsData] = await Promise.all([
+              getTasksByWedding(weddingData.id),
+              getGuestsByWeddingId(weddingData.id)
+            ]);
             setTasks(tasksData || []);
+            setGuests(guestsData || []);
           } catch (error) {
-            console.error("Failed to load tasks:", error);
+            console.error("Failed to load tasks/guests:", error);
           }
         }
       }
@@ -393,17 +423,20 @@ export default function WeddingManagement({ role = "couple" }) {
 
   const SERVICE_CHARGE = 10000; // 10,000 ETB service charge
 
-  const calculateTotalCost = () => {
-    const servicesTotal = bookedServices.reduce((sum, booking) => {
-      return sum + (booking.service?.price || 0);
+  const calculateServicesTotal = () => {
+    // Redundancy check: only count unique service IDs AND only those that are ACCEPTED
+    const uniqueServiceIds = new Set();
+    return bookedServices.reduce((sum, booking) => {
+      if (booking.status === "ACCEPTED" && booking.serviceId && !uniqueServiceIds.has(booking.serviceId)) {
+        uniqueServiceIds.add(booking.serviceId);
+        return sum + (booking.service?.price || 0);
+      }
+      return sum;
     }, 0);
-    return servicesTotal + SERVICE_CHARGE; // Add 10k service charge
   };
 
-  const calculateServicesTotal = () => {
-    return bookedServices.reduce((sum, booking) => {
-      return sum + (booking.service?.price || 0);
-    }, 0);
+  const calculateTotalCost = () => {
+    return calculateServicesTotal() + SERVICE_CHARGE;
   };
 
   const calculatePaidAmount = () => {
@@ -455,48 +488,9 @@ export default function WeddingManagement({ role = "couple" }) {
       <div className="management-content" style={{ marginLeft: role === "couple" ? "260px" : "280px", flex: 1 }}>
         <div className="management-header">
           <h1>Wedding Management</h1>
-          <p className="subtitle">{wedding.partnersName || "Wedding Details"}</p>
+          <p className="subtitle">{couple?.firstName || "Your"} & {wedding.partnersName || "Partner"}'s Wedding</p>
         </div>
 
-        {/* Quick Actions / Chat */}
-        {role === "manager" && couple && (
-          <div className="section-card" style={{ marginBottom: "2rem", background: "#fef3c7", border: "1px solid #d4af37" }}>
-            <div className="section-header" style={{ marginBottom: "1rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#92400e" }}>
-                <MessageCircle size={24} />
-                <h2 style={{ margin: 0, fontSize: "1.2rem" }}>Quick Message to Couple</h2>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: "1rem" }}>
-              <input
-                type="text"
-                id="quick-msg-input"
-                placeholder={`Message ${couple.firstName || "Couple"}...`}
-                style={{ flex: 1, padding: "0.75rem", borderRadius: "8px", border: "1px solid #d4af37" }}
-              />
-              <button
-                onClick={async () => {
-                  const input = document.getElementById("quick-msg-input");
-                  const msg = input.value;
-                  if (!msg.trim()) return;
-
-                  try {
-                    await sendMessage(userId, couple.clerkId, msg);
-                    alert("Message sent!");
-                    input.value = "";
-                  } catch (e) {
-                    console.error(e);
-                    alert("Failed to send message");
-                  }
-                }}
-                className="btn-primary"
-                style={{ padding: "0.75rem 1.5rem" }}
-              >
-                Send
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Payment Overview */}
         <div className="section-card">
@@ -562,16 +556,65 @@ export default function WeddingManagement({ role = "couple" }) {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "2rem" }}>
               <div>
-                <p style={{ opacity: 0.8, fontSize: "0.9rem", marginBottom: "0.25rem" }}>Total Budget</p>
-                <p style={{ fontSize: "1.8rem", fontWeight: "700" }}>ETB {totalCost.toLocaleString()}</p>
+                <p style={{ opacity: 0.8, fontSize: "0.9rem", marginBottom: "0.25rem" }}>Services Subtotal</p>
+                <p style={{ fontSize: "1.5rem", fontWeight: "600" }}>ETB {calculateServicesTotal().toLocaleString()}</p>
+                <p style={{ opacity: 0.8, fontSize: "0.8rem", marginTop: "0.5rem" }}>+ ETB {SERVICE_CHARGE.toLocaleString()} Service Charge</p>
               </div>
               <div style={{ borderLeft: "1px solid rgba(255,255,255,0.2)", paddingLeft: "2rem" }}>
                 <p style={{ opacity: 0.8, fontSize: "0.9rem", marginBottom: "0.25rem" }}>Total Paid</p>
                 <p style={{ fontSize: "1.8rem", fontWeight: "700" }}>ETB {paidAmount.toLocaleString()}</p>
               </div>
               <div style={{ borderLeft: "1px solid rgba(255,255,255,0.2)", paddingLeft: "2rem" }}>
-                <p style={{ opacity: 0.8, fontSize: "0.9rem", marginBottom: "0.25rem" }}>Outstanding Balance</p>
-                <p style={{ fontSize: "1.8rem", fontWeight: "700" }}>ETB {remainingAmount.toLocaleString()}</p>
+                <p style={{ opacity: 0.8, fontSize: "0.9rem", marginBottom: "0.25rem" }}>Remaining Balance</p>
+                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                  <p style={{ fontSize: "1.8rem", fontWeight: "700", margin: 0 }}>ETB {remainingAmount.toLocaleString()}</p>
+                  {role === "couple" && remainingAmount > 0 && (
+                    <button
+                      onClick={async () => {
+                        if (isProcessingPayment) return;
+                        setIsProcessingPayment(true);
+                        try {
+                          const user = await getUserByClerkId(userId);
+                          const txRef = `wedding-${wedding.id}-final-${Date.now()}`;
+                          localStorage.setItem("lastTxRef", txRef);
+
+                          const result = await initializeChapaPayment({
+                            email: user.email,
+                            firstName: user.firstName || "User",
+                            lastName: user.lastName || "",
+                            amount: remainingAmount,
+                            txRef,
+                            coupleClerkId: userId,
+                            returnUrl: `${window.location.origin}/couple/wedding-management?payment=return&tx_ref=${txRef}`
+                          });
+
+                          if (result?.success && result.checkout_url) {
+                            window.location.href = result.checkout_url;
+                          } else {
+                            alert("Failed to initialize balance payment");
+                          }
+                        } catch (e) {
+                          console.error(e);
+                          alert("Error processing balance payment");
+                        } finally {
+                          setIsProcessingPayment(false);
+                        }
+                      }}
+                      style={{
+                        padding: "0.5rem 1rem",
+                        background: "white",
+                        color: "#d4af37",
+                        border: "none",
+                        borderRadius: "8px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        fontSize: "0.8rem"
+                      }}
+                    >
+                      Pay Now
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -724,54 +767,7 @@ export default function WeddingManagement({ role = "couple" }) {
           )}
         </div>
 
-        {/* Meeting Requests */}
-        <div className="section-card">
-          <div className="section-header">
-            <Video size={24} color="#7c3aed" />
-            <h2>Meeting Requests</h2>
-          </div>
 
-          <div className="meeting-actions">
-            <button
-              onClick={() => setShowMeetingModal(true)}
-              className="btn-primary"
-            >
-              <Video size={18} />
-              Request Meeting
-            </button>
-          </div>
-
-          {meetingRequests.length === 0 ? (
-            <p style={{ color: "#6b7280", textAlign: "center", padding: "2rem" }}>
-              No meeting requests yet
-            </p>
-          ) : (
-            <div className="meetings-list">
-              {meetingRequests.map((meeting) => (
-                <div key={meeting.id} className="meeting-item">
-                  <div className="meeting-info">
-                    <h4>{meeting.type === "ONLINE" ? "Online Meeting" : "In-Person Meeting"}</h4>
-                    <p>{meeting.date ? new Date(meeting.date).toLocaleDateString() : "Date TBD"}</p>
-                    <p className="meeting-status">{meeting.status}</p>
-                  </div>
-                  <div className="meeting-actions-item">
-                    {meeting.type === "ONLINE" && meeting.status === "ACCEPTED" && (
-                      <button
-                        onClick={() => {
-                          const meetingRoom = `meeting - ${userId} -${meeting.id} `.replace(/[^a-zA-Z0-9]/g, "");
-                          window.open(`https://meet.jit.si/${meetingRoom}`, "_blank");
-                        }}
-                        className="btn-secondary"
-                      >
-                        Join Meeting
-                      </button >
-                    )}
-                  </div >
-                </div >
-              ))}
-            </div >
-          )}
-        </div >
         {/* Wedding Team Section */}
         {
           (manager || protocol) && (
@@ -781,7 +777,7 @@ export default function WeddingManagement({ role = "couple" }) {
                 <h2>Wedding Team</h2>
               </div>
               <div className="team-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1.5rem", marginTop: "1rem" }}>
-                {manager && (
+                {manager && role !== "manager" && (
                   <div className="team-member-card" style={{ padding: "1.5rem", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
                       <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#d4af37", display: "flex", alignItems: "center", justifyCenter: "center", color: "white" }}>
@@ -793,11 +789,84 @@ export default function WeddingManagement({ role = "couple" }) {
                       </div>
                     </div>
                     <div className="team-actions" style={{ display: "flex", gap: "0.5rem" }}>
-                      <button onClick={() => window.open(`mailto:${manager.email}`, "_blank")} className="btn-secondary btn-small" style={{ flex: 1 }}>Email</button>
-                      <button onClick={() => {
-                        const meetingRoom = `manager-${userId}-${manager.clerkId}`.replace(/[^a-zA-Z0-9]/g, "");
-                        window.open(`https://meet.jit.si/${meetingRoom}`, "_blank");
-                      }} className="btn-primary btn-small" style={{ flex: 1 }}>Meet</button>
+                      {role === "couple" ? (
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                          {!showManagerInput ? (
+                            <div style={{ display: "flex", gap: "0.5rem", width: "100%" }}>
+                              <button
+                                onClick={() => setShowManagerInput(true)}
+                                className="btn-primary btn-small"
+                                style={{ flex: 1 }}
+                              >
+                                Inbox
+                              </button>
+                              <button
+                                onClick={() => setShowMeetingModal(true)}
+                                className="btn-outline btn-small"
+                                style={{ flex: 1 }}
+                              >
+                                Request Meeting
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="inline-message-box" style={{ marginTop: "0.5rem" }}>
+                              <textarea
+                                value={managerMessage}
+                                onChange={(e) => setManagerMessage(e.target.value)}
+                                placeholder="Message your manager..."
+                                style={{
+                                  width: "100%",
+                                  padding: "0.5rem",
+                                  borderRadius: "8px",
+                                  border: "1px solid #d4af37",
+                                  fontSize: "0.85rem",
+                                  marginBottom: "0.5rem",
+                                  resize: "none"
+                                }}
+                                rows={2}
+                              />
+                              <div style={{ display: "flex", gap: "0.5rem" }}>
+                                <button
+                                  onClick={async () => {
+                                    if (!managerMessage.trim()) return;
+                                    setIsSendingMessage(true);
+                                    try {
+                                      await sendMessage(userId, manager.clerkId, managerMessage);
+                                      alert("Message sent!");
+                                      setManagerMessage("");
+                                      setShowManagerInput(false);
+                                      // Couples don't have /manager/messages, they might have /couple/messages
+                                      navigate("/couple/messages");
+                                    } catch (e) {
+                                      alert("Failed to send message");
+                                    } finally {
+                                      setIsSendingMessage(false);
+                                    }
+                                  }}
+                                  className="btn-primary btn-small"
+                                  disabled={isSendingMessage}
+                                  style={{ flex: 1 }}
+                                >
+                                  {isSendingMessage ? "..." : "Send"}
+                                </button>
+                                <button
+                                  onClick={() => setShowManagerInput(false)}
+                                  className="btn-secondary btn-small"
+                                  style={{ flex: 1, background: "#ef4444", borderColor: "#ef4444" }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+                      {role === "manager" && manager.clerkId !== userId && (
+                        <button onClick={() => {
+                          const meetingRoom = `manager-${userId}-${manager.clerkId}`.replace(/[^a-zA-Z0-9]/g, "");
+                          window.open(`https://meet.jit.si/${meetingRoom}`, "_blank");
+                        }} className="btn-primary btn-small" style={{ flex: 1 }}>Meet</button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -818,7 +887,66 @@ export default function WeddingManagement({ role = "couple" }) {
                     <div className="team-actions" style={{ display: "flex", gap: "0.5rem" }}>
                       <button onClick={() => window.open(`mailto:${protocol.email}`, "_blank")} className="btn-secondary btn-small" style={{ flex: 1 }}>Email</button>
                       {role === "manager" && (
-                        <button onClick={() => navigate("/manager/dashboard")} className="btn-outline btn-small" style={{ flex: 1 }}>Reassign</button>
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                          {!showProtocolInput ? (
+                            <button
+                              onClick={() => setShowProtocolInput(true)}
+                              className="btn-outline btn-small"
+                              style={{ width: "100%" }}
+                            >
+                              Inbox
+                            </button>
+                          ) : (
+                            <div className="inline-message-box" style={{ marginTop: "0.5rem" }}>
+                              <textarea
+                                value={protocolMessage}
+                                onChange={(e) => setProtocolMessage(e.target.value)}
+                                placeholder="Type a message..."
+                                style={{
+                                  width: "100%",
+                                  padding: "0.5rem",
+                                  borderRadius: "8px",
+                                  border: "1px solid #d4af37",
+                                  fontSize: "0.85rem",
+                                  marginBottom: "0.5rem",
+                                  resize: "none"
+                                }}
+                                rows={2}
+                              />
+                              <div style={{ display: "flex", gap: "0.5rem" }}>
+                                <button
+                                  onClick={async () => {
+                                    if (!protocolMessage.trim()) return;
+                                    setIsSendingMessage(true);
+                                    try {
+                                      await sendMessage(userId, protocol.clerkId, protocolMessage);
+                                      alert("Message sent!");
+                                      setProtocolMessage("");
+                                      setShowProtocolInput(false);
+                                      navigate("/manager/messages");
+                                    } catch (e) {
+                                      alert("Failed to send message");
+                                    } finally {
+                                      setIsSendingMessage(false);
+                                    }
+                                  }}
+                                  className="btn-primary btn-small"
+                                  disabled={isSendingMessage}
+                                  style={{ flex: 1 }}
+                                >
+                                  {isSendingMessage ? "..." : "Send"}
+                                </button>
+                                <button
+                                  onClick={() => setShowProtocolInput(false)}
+                                  className="btn-secondary btn-small"
+                                  style={{ flex: 1, background: "#ef4444", borderColor: "#ef4444" }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -837,7 +965,7 @@ export default function WeddingManagement({ role = "couple" }) {
             </div>
             {role === "manager" && (
               <button onClick={() => setShowTaskModal(true)} className="btn-primary" style={{ padding: "0.5rem 1rem" }}>
-                + Add Task
+                Create To-Do Task
               </button>
             )}
           </div>
@@ -890,8 +1018,8 @@ export default function WeddingManagement({ role = "couple" }) {
                       borderRadius: "12px",
                       fontSize: "0.75rem",
                       fontWeight: "600",
-                      background: task.assignedRole === "Manager" ? "#dbeafe" : task.assignedRole === "Couple" ? "#fef3c7" : "#d1fae5",
-                      color: task.assignedRole === "Manager" ? "#1e40af" : task.assignedRole === "Couple" ? "#92400e" : "#065f46"
+                      background: task.assignedRole?.toUpperCase() === "MANAGER" ? "#dbeafe" : task.assignedRole?.toUpperCase() === "COUPLE" ? "#fef3c7" : "#d1fae5",
+                      color: task.assignedRole?.toUpperCase() === "MANAGER" ? "#1e40af" : task.assignedRole?.toUpperCase() === "COUPLE" ? "#92400e" : "#065f46"
                     }}>
                       {task.assignedRole}
                     </span>
@@ -929,25 +1057,66 @@ export default function WeddingManagement({ role = "couple" }) {
                   <>
                     <h4>Your Wedding Manager</h4>
                     <p>{manager.firstName} {manager.lastName}</p>
-                    <p>{manager.email}</p>
                     <div className="contact-actions">
-                      <button
-                        onClick={() => window.open(`mailto:${manager.email}`, "_blank")}
-                        className="btn-secondary"
-                      >
-                        <MessageCircle size={18} />
-                        Send Email
-                      </button>
-                      <button
-                        onClick={() => {
-                          const meetingRoom = `manager-${userId}-${manager.clerkId}`.replace(/[^a-zA-Z0-9]/g, "");
-                          window.open(`https://meet.jit.si/${meetingRoom}`, "_blank");
-                        }}
-                        className="btn-secondary"
-                      >
-                        <Video size={18} />
-                        Video Call
-                      </button>
+                      {!showManagerInput ? (
+                        <button
+                          onClick={() => setShowManagerInput(true)}
+                          className="btn-primary"
+                          style={{ width: "100%" }}
+                        >
+                          <MessageCircle size={18} />
+                          Inbox Manager
+                        </button>
+                      ) : (
+                        <div className="inline-message-box" style={{ width: "100%", marginTop: "0.5rem" }}>
+                          <textarea
+                            value={managerMessage}
+                            onChange={(e) => setManagerMessage(e.target.value)}
+                            placeholder="Message your manager..."
+                            style={{
+                              width: "100%",
+                              padding: "0.75rem",
+                              borderRadius: "8px",
+                              border: "1px solid #d4af37",
+                              fontSize: "0.95rem",
+                              marginBottom: "0.5rem",
+                              resize: "none"
+                            }}
+                            rows={3}
+                          />
+                          <div style={{ display: "flex", gap: "0.5rem" }}>
+                            <button
+                              onClick={async () => {
+                                if (!managerMessage.trim()) return;
+                                setIsSendingMessage(true);
+                                try {
+                                  await sendMessage(userId, manager.clerkId, managerMessage);
+                                  alert("Message sent!");
+                                  setManagerMessage("");
+                                  setShowManagerInput(false);
+                                  navigate("/couple/messages");
+                                } catch (e) {
+                                  alert("Failed to send message");
+                                } finally {
+                                  setIsSendingMessage(false);
+                                }
+                              }}
+                              className="btn-primary"
+                              disabled={isSendingMessage}
+                              style={{ flex: 1 }}
+                            >
+                              {isSendingMessage ? "..." : "Send"}
+                            </button>
+                            <button
+                              onClick={() => setShowManagerInput(false)}
+                              className="btn-secondary"
+                              style={{ flex: 1, background: "#ef4444", borderColor: "#ef4444", color: "white" }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -958,23 +1127,65 @@ export default function WeddingManagement({ role = "couple" }) {
                     <p>{couple.firstName} {couple.lastName}</p>
                     <p>{couple.email}</p>
                     <div className="contact-actions">
-                      <button
-                        onClick={() => window.open(`mailto:${couple.email}`, "_blank")}
-                        className="btn-secondary"
-                      >
-                        <MessageCircle size={18} />
-                        Send Email
-                      </button>
-                      <button
-                        onClick={() => {
-                          const meetingRoom = `manager-${userId}-${couple.clerkId}`.replace(/[^a-zA-Z0-9]/g, "");
-                          window.open(`https://meet.jit.si/${meetingRoom}`, "_blank");
-                        }}
-                        className="btn-secondary"
-                      >
-                        <Video size={18} />
-                        Video Call
-                      </button>
+                      {!showCoupleInput ? (
+                        <button
+                          onClick={() => setShowCoupleInput(true)}
+                          className="btn-primary"
+                          style={{ width: "100%" }}
+                        >
+                          <MessageCircle size={18} />
+                          Inbox Couple
+                        </button>
+                      ) : (
+                        <div className="inline-message-box" style={{ width: "100%", marginTop: "0.5rem" }}>
+                          <textarea
+                            value={coupleMessage}
+                            onChange={(e) => setCoupleMessage(e.target.value)}
+                            placeholder="Message the couple..."
+                            style={{
+                              width: "100%",
+                              padding: "0.75rem",
+                              borderRadius: "8px",
+                              border: "1px solid #d4af37",
+                              fontSize: "0.95rem",
+                              marginBottom: "0.5rem",
+                              resize: "none"
+                            }}
+                            rows={3}
+                          />
+                          <div style={{ display: "flex", gap: "0.5rem" }}>
+                            <button
+                              onClick={async () => {
+                                if (!coupleMessage.trim()) return;
+                                setIsSendingMessage(true);
+                                try {
+                                  await sendMessage(userId, couple.clerkId, coupleMessage);
+                                  alert("Message sent!");
+                                  setCoupleMessage("");
+                                  setShowCoupleInput(false);
+                                  navigate("/manager/messages");
+                                } catch (e) {
+                                  alert("Failed to send message");
+                                } finally {
+                                  setIsSendingMessage(false);
+                                }
+                              }}
+                              className="btn-primary"
+                              disabled={isSendingMessage}
+                              style={{ flex: 1 }}
+                            >
+                              {isSendingMessage ? "..." : "Send"}
+                            </button>
+                            <button
+                              onClick={() => setShowCoupleInput(false)}
+                              className="btn-secondary"
+                              style={{ flex: 1, background: "#ef4444", borderColor: "#ef4444", color: "white" }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -989,7 +1200,7 @@ export default function WeddingManagement({ role = "couple" }) {
             <div className="modal-overlay" onClick={() => setShowTaskModal(false)}>
               <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-                  <h2 style={{ margin: 0, fontFamily: "Playfair Display" }}>Add New Task</h2>
+                  <h2 style={{ margin: 0, fontFamily: "Playfair Display" }}>New To-Do Task</h2>
                   <button onClick={() => setShowTaskModal(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={20} /></button>
                 </div>
 
@@ -998,9 +1209,10 @@ export default function WeddingManagement({ role = "couple" }) {
                     <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Task Title</label>
                     <input
                       type="text"
+                      className="form-input"
                       value={newTask.title}
                       onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                      placeholder="e.g. Setup VIP Section"
+                      placeholder="e.g. Call the catering service"
                       style={{ width: "100%", padding: "0.75rem", borderRadius: "8px", border: "1px solid #e2e8f0" }}
                     />
                   </div>
@@ -1014,38 +1226,20 @@ export default function WeddingManagement({ role = "couple" }) {
                       style={{ width: "100%", padding: "0.75rem", borderRadius: "8px", border: "1px solid #e2e8f0" }}
                     />
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                    <div className="form-group">
-                      <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Category</label>
-                      <select
-                        className="form-select"
-                        value={newTask.category}
-                        onChange={(e) => setNewTask({ ...newTask, category: e.target.value })}
-                        style={{ width: "100%", padding: "0.75rem", borderRadius: "8px", border: "1px solid #e2e8f0" }}
-                      >
-                        <option value="GENERAL">General</option>
-                        <option value="VIP">VIP</option>
-                        <option value="LOGISTICS">Logistics</option>
-                        <option value="CATERING">Catering</option>
-                        <option value="SECURITY">Security</option>
-                        <option value="QR_CODE">QR Code</option>
-                        <option value="OTHER">Other</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Assigned To</label>
-                      <select
-                        className="form-select"
-                        value={newTask.assignedRole}
-                        onChange={(e) => setNewTask({ ...newTask, assignedRole: e.target.value })}
-                        style={{ width: "100%", padding: "0.75rem", borderRadius: "8px", border: "1px solid #e2e8f0" }}
-                      >
-                        <option value="Manager">Manager</option>
-                        <option value="Couple">Couple</option>
-                        <option value="Protocol">Protocol</option>
-                      </select>
-                    </div>
+                  <div className="form-group">
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Assign To</label>
+                    <select
+                      className="form-select"
+                      value={newTask.assignedRole}
+                      onChange={(e) => setNewTask({ ...newTask, assignedRole: e.target.value })}
+                      style={{ width: "100%", padding: "0.75rem", borderRadius: "8px", border: "1px solid #e2e8f0" }}
+                    >
+                      <option value="MANAGER">Manager (Me)</option>
+                      <option value="COUPLE">Couple</option>
+                      <option value="PROTOCOL">Protocol Officer</option>
+                    </select>
                   </div>
+
                   <button
                     className="btn-primary"
                     onClick={async () => {
@@ -1054,10 +1248,18 @@ export default function WeddingManagement({ role = "couple" }) {
                         return;
                       }
                       try {
-                        const task = await createTask(wedding.id, newTask.title, newTask.description, newTask.category, newTask.assignedRole, null);
+                        const task = await createTask(
+                          wedding.id,
+                          newTask.title,
+                          newTask.description,
+                          "GENERAL",
+                          newTask.assignedRole,
+                          null,
+                          null
+                        );
                         setTasks([...tasks, task]);
                         setShowTaskModal(false);
-                        setNewTask({ title: "", description: "", category: "GENERAL", assignedRole: "Manager" });
+                        setNewTask({ title: "", description: "", category: "GENERAL", assignedRole: "MANAGER" });
                       } catch (e) {
                         console.error(e);
                         alert("Failed to create task");
@@ -1065,8 +1267,145 @@ export default function WeddingManagement({ role = "couple" }) {
                     }}
                     style={{ marginTop: "1rem", padding: "1rem" }}
                   >
-                    Create Task
+                    Add To-Do Task
                   </button>
+                </div>
+              </div>
+            </div>
+          )
+        }
+        {role === "manager" && assignment?.status !== "COMPLETED" && (
+          <div className="section-card" style={{ marginTop: "2rem", borderTop: "2px solid #e2e8f0", paddingTop: "2rem" }}>
+            <div className="section-header">
+              <CheckCircle size={24} color="#d4af37" />
+              <h2>Wedding Completion & Review</h2>
+            </div>
+            <p style={{ color: "#64748b", marginBottom: "1.5rem" }}>
+              Finalize this wedding and rate the Protocol Officer's performance. This will move the wedding to history for all parties.
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              <div className="form-group">
+                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Rate Protocol Performance</label>
+                <div style={{ display: "flex", gap: "1rem", fontSize: "1.5rem" }}>
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <span
+                      key={star}
+                      onClick={() => setCompletionData({ ...completionData, rating: star })}
+                      style={{ cursor: "pointer", color: star <= completionData.rating ? "#d4af37" : "#cbd5e1" }}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Feedback for Protocol</label>
+                <textarea
+                  value={completionData.feedback}
+                  onChange={(e) => setCompletionData({ ...completionData, feedback: e.target.value })}
+                  placeholder="Share your experience working with the protocol officer..."
+                  rows={4}
+                  style={{ width: "100%", padding: "0.75rem", borderRadius: "8px", border: "1px solid #e2e8f0" }}
+                />
+              </div>
+
+              <button
+                className="btn-primary"
+                disabled={isCompleting}
+                onClick={async () => {
+                  if (!window.confirm("Are you sure you want to mark this wedding as completed? This action cannot be undone.")) return;
+
+                  setIsCompleting(true);
+                  try {
+                    await completeWedding(wedding.id, userId, completionData.rating, completionData.feedback);
+                    alert("Wedding completed successfully!");
+                    window.location.href = "/manager/dashboard";
+                  } catch (e) {
+                    console.error(e);
+                    alert("Failed to complete wedding. Please check tasks and payments.");
+                  } finally {
+                    setIsCompleting(false);
+                  }
+                }}
+                style={{ padding: "1rem", backgroundColor: "#10b981", borderColor: "#10b981" }}
+              >
+                {isCompleting ? "Processing..." : "Mark Wedding as Completed"}
+              </button>
+            </div>
+          </div>
+        )}
+        {
+          showMeetingModal && (
+            <div className="modal-overlay" onClick={() => setShowMeetingModal(false)}>
+              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+                  <h2 style={{ margin: 0, fontFamily: "Playfair Display" }}>Request Meeting</h2>
+                  <button onClick={() => setShowMeetingModal(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={20} /></button>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                  <div className="form-group">
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Purpose of Meeting</label>
+                    <textarea
+                      value={meetingPurpose}
+                      onChange={(e) => setMeetingPurpose(e.target.value)}
+                      rows={3}
+                      placeholder="e.g. Discuss catering menu, review budget..."
+                      style={{ width: "100%", padding: "0.75rem", borderRadius: "8px", border: "1px solid #e2e8f0", outline: "none" }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "600" }}>Preferred Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      className="form-input"
+                      value={meetingTime}
+                      onChange={(e) => setMeetingTime(e.target.value)}
+                      style={{ width: "100%", padding: "0.75rem", borderRadius: "8px", border: "1px solid #e2e8f0", outline: "none" }}
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", gap: "1rem", marginTop: "1rem" }}>
+                    <button
+                      className="btn-primary"
+                      disabled={isSubmittingMeeting}
+                      onClick={async () => {
+                        if (!meetingPurpose.trim() || !meetingTime) {
+                          alert("Please provide both purpose and time for the meeting.");
+                          return;
+                        }
+                        setIsSubmittingMeeting(true);
+                        try {
+                          await requestMeeting({
+                            coupleId: wedding.id,
+                            meetingTime: meetingTime,
+                            purpose: meetingPurpose
+                          });
+                          alert("Meeting request sent!");
+                          setMeetingPurpose("");
+                          setMeetingTime("");
+                          setShowMeetingModal(false);
+                        } catch (e) {
+                          console.error(e);
+                          alert("Failed to send meeting request.");
+                        } finally {
+                          setIsSubmittingMeeting(false);
+                        }
+                      }}
+                      style={{ flex: 1, padding: "1rem" }}
+                    >
+                      {isSubmittingMeeting ? "Sending..." : "Send Request"}
+                    </button>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => setShowMeetingModal(false)}
+                      style={{ flex: 1, padding: "1rem" }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

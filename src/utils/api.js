@@ -252,9 +252,28 @@ export const getGuests = async (coupleClerkId) => {
   }
 };
 
+export const getGuestsByWeddingId = async (weddingId) => {
+  try {
+    const response = await api.get(`/guests/wedding/${weddingId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching guests by wedding ID:", error);
+    throw error;
+  }
+};
+
 export const getGuestByCode = async (uniqueCode) => {
   try {
     const response = await api.get(`/guests/code/${uniqueCode}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const checkInGuest = async (guestId) => {
+  try {
+    const response = await api.patch(`/guests/${guestId}/check-in`);
     return response.data;
   } catch (error) {
     throw error;
@@ -332,6 +351,24 @@ export const deleteUser = async (clerkId, adminClerkId) => {
 export const getAllWeddings = async () => {
   try {
     const response = await api.get('/weddings/all');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getAllPayments = async () => {
+  try {
+    const response = await api.get('/payments/all');
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getAdminAnalytics = async () => {
+  try {
+    const response = await api.get('/analytics/admin');
     return response.data;
   } catch (error) {
     throw error;
@@ -416,6 +453,16 @@ export const getUserByClerkId = async (clerkId) => {
     if (error.response?.status === 404) {
       return null;
     }
+    throw error;
+  }
+};
+
+export const completeWedding = async (weddingId, managerClerkId, rating, feedback) => {
+  try {
+    const response = await api.patch(`/assignments/wedding/${weddingId}/complete?managerClerkId=${managerClerkId}&rating=${rating}`, { feedback });
+    return response.data;
+  } catch (error) {
+    console.error("Error completing wedding:", error);
     throw error;
   }
 };
@@ -653,6 +700,16 @@ export const getInbox = async (clerkId) => {
 };
 
 // Meeting APIs (Manager)
+export const requestMeeting = async (meetingData) => {
+  try {
+    const response = await api.post('/meetings/request', meetingData);
+    return response.data;
+  } catch (error) {
+    console.error("Error requesting meeting:", error);
+    throw error;
+  }
+};
+
 export const requestMeetingByManager = async (managerClerkId, coupleId, meetingTime, purpose) => {
   try {
     const response = await api.post('/meetings/manager-request', {
@@ -772,6 +829,26 @@ export const deleteTask = async (taskId) => {
     await api.delete(`/tasks/${taskId}`);
   } catch (error) {
     console.error("Error deleting task:", error);
+    throw error;
+  }
+};
+
+export const submitCoupleFeedback = async (feedbackData) => {
+  try {
+    const response = await api.post('/feedback/submit', feedbackData);
+    return response.data;
+  } catch (error) {
+    console.error("Error submitting couple feedback:", error);
+    throw error;
+  }
+};
+
+export const getProtocolStats = async (clerkId) => {
+  try {
+    const response = await api.get(`/feedback/protocol/${clerkId}/stats`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching protocol stats:", error);
     throw error;
   }
 };

@@ -29,10 +29,10 @@ export default function BookingForm({ service, coupleClerkId, onSuccess, onCance
         specialRequests: formData.specialRequests || null,
       };
       const response = await createBooking(coupleClerkId, bookingData);
-      
+
       // Show success message
       setSuccess(true);
-      
+
       // Wait a moment to show the success message, then call onSuccess
       setTimeout(() => {
         if (onSuccess) {
@@ -47,57 +47,61 @@ export default function BookingForm({ service, coupleClerkId, onSuccess, onCance
   };
 
   return (
-    <div className="booking-form-container">
-      <h3>Request Booking</h3>
-      <p className="form-subtitle">Send a booking request to {service.serviceName}</p>
+    <div className="booking-form-wrapper">
+      <div className="form-header">
+        <h3 className="form-title">Inquiry Details</h3>
+        <p className="form-subtitle">Curating your experience with {service.serviceName}</p>
+      </div>
 
-      <form onSubmit={handleSubmit} className="booking-form">
-        <div className="form-row">
-          <div className="form-group">
-            <label>
-              <Calendar size={16} />
-              Event Date
-            </label>
-            <input
-              type="date"
-              value={formData.eventDate}
-              onChange={(e) => setFormData({ ...formData, eventDate: e.target.value })}
-            />
+      <form onSubmit={handleSubmit} className="booking-form-editorial">
+        <div className="form-grid">
+          <div className="input-group">
+            <label className="editorial-label">Preferred Date</label>
+            <div className="input-with-icon">
+              <Calendar size={18} className="input-icon" />
+              <input
+                type="date"
+                required
+                className="editorial-input"
+                value={formData.eventDate}
+                onChange={(e) => setFormData({ ...formData, eventDate: e.target.value })}
+              />
+            </div>
           </div>
 
-          <div className="form-group">
-            <label>
-              <Clock size={16} />
-              Event Time
-            </label>
+          <div className="input-group">
+            <label className="editorial-label">Event Time</label>
+            <div className="input-with-icon">
+              <Clock size={18} className="input-icon" />
+              <input
+                type="time"
+                className="editorial-input"
+                value={formData.eventTime}
+                onChange={(e) => setFormData({ ...formData, eventTime: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="input-group">
+          <label className="editorial-label">Venue Location</label>
+          <div className="input-with-icon">
+            <MapPin size={18} className="input-icon" />
             <input
-              type="time"
-              value={formData.eventTime}
-              onChange={(e) => setFormData({ ...formData, eventTime: e.target.value })}
+              type="text"
+              placeholder="Where will the celebration take place?"
+              className="editorial-input"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
             />
           </div>
         </div>
 
-        <div className="form-group">
-          <label>
-            <MapPin size={16} />
-            Location
-          </label>
-          <input
-            type="text"
-            placeholder="Event location"
-            value={formData.location}
-            onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-          />
-        </div>
-
-        <div className="form-group">
-          <label>
-            <FileText size={16} />
-            Special Requests
-          </label>
+        <div className="input-group">
+          <label className="editorial-label">Bespoke Requirements</label>
           <textarea
-            placeholder="Any special requests or notes..."
+            placeholder="Share any specific visions or special accommodations you desire..."
+            className="editorial-textarea"
             rows="4"
             value={formData.specialRequests}
             onChange={(e) => setFormData({ ...formData, specialRequests: e.target.value })}
@@ -105,31 +109,26 @@ export default function BookingForm({ service, coupleClerkId, onSuccess, onCance
         </div>
 
         {error && (
-          <div className="error-message">
-            ❌ {error}
+          <div className="error-banner">
+            <p>{error}</p>
           </div>
         )}
 
-        {success && (
-          <div className="success-message" style={{
-            padding: "1rem",
-            background: "#d1fae5",
-            color: "#065f46",
-            borderRadius: "8px",
-            marginBottom: "1rem",
-            textAlign: "center",
-            fontWeight: "600"
-          }}>
-            ✅ Request sent! Waiting for vendor approval...
-          </div>
-        )}
-
-        <div className="form-actions">
-          <button type="button" className="btn-cancel" onClick={onCancel} disabled={isSubmitting || success}>
-            Cancel
+        <div className="form-actions-editorial">
+          <button
+            type="button"
+            className="btn-link"
+            onClick={onCancel}
+            disabled={isSubmitting || success}
+          >
+            Go Back
           </button>
-          <button type="submit" className="btn-submit" disabled={isSubmitting || success}>
-            {isSubmitting ? "Sending..." : success ? "Sent!" : "Send Request"}
+          <button
+            type="submit"
+            className="btn-gold"
+            disabled={isSubmitting || success}
+          >
+            {isSubmitting ? "Delivering..." : success ? "Request Sent" : "Send Inquiry"}
           </button>
         </div>
       </form>

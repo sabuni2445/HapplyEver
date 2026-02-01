@@ -141,44 +141,63 @@ export default function MyWedding() {
               <p className="page-subtitle">Your special day details</p>
             </div>
             <div style={{ display: "flex", gap: "1rem" }}>
-              <button
-                onClick={() => navigate("/couple/dashboard")}
-                style={{
+              {assignment?.status === "COMPLETED" ? (
+                <div style={{
                   padding: "0.75rem 1.5rem",
-                  background: "#f3f4f6",
-                  border: "none",
+                  background: "#f0fdf4",
                   borderRadius: "8px",
-                  cursor: "pointer",
-                  color: "#523c2b",
-                  fontWeight: "600",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem"
-                }}
-              >
-                <Edit size={18} />
-                Edit
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={isDeleting}
-                style={{
-                  padding: "0.75rem 1.5rem",
-                  background: "#fee2e2",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: isDeleting ? "not-allowed" : "pointer",
-                  color: "#991b1b",
-                  fontWeight: "600",
+                  color: "#16a34a",
+                  fontWeight: "700",
                   display: "flex",
                   alignItems: "center",
                   gap: "0.5rem",
-                  opacity: isDeleting ? 0.6 : 1
-                }}
-              >
-                <Trash2 size={18} />
-                Delete
-              </button>
+                  border: "1px solid #16a34a"
+                }}>
+                  <CheckCircle size={18} />
+                  Journey Completed
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => navigate("/couple/dashboard")}
+                    style={{
+                      padding: "0.75rem 1.5rem",
+                      background: "#f3f4f6",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      color: "#523c2b",
+                      fontWeight: "600",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem"
+                    }}
+                  >
+                    <Edit size={18} />
+                    Edit
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    style={{
+                      padding: "0.75rem 1.5rem",
+                      background: "#fee2e2",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: isDeleting ? "not-allowed" : "pointer",
+                      color: "#991b1b",
+                      fontWeight: "600",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      opacity: isDeleting ? 0.6 : 1
+                    }}
+                  >
+                    <Trash2 size={18} />
+                    Delete
+                  </button>
+                </>
+              )}
             </div>
           </div>
 

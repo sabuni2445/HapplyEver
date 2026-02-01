@@ -50,7 +50,7 @@ export default function SignUpScreen() {
 
             if (completeSignUp.status === 'complete') {
                 await setActive({ session: completeSignUp.createdSessionId });
-                router.replace('/(tabs)');
+                router.replace('/onboarding');
             } else {
                 console.error(JSON.stringify(completeSignUp, null, 2));
             }
@@ -63,9 +63,9 @@ export default function SignUpScreen() {
     const onGoogleSignUpPress = React.useCallback(async () => {
         try {
             const { createdSessionId, setActive } = await startOAuthFlow();
-            if (createdSessionId) {
+            if (createdSessionId && setActive) {
                 setActive({ session: createdSessionId });
-                router.replace('/(tabs)');
+                router.replace('/onboarding');
             } else {
                 // Use signIn or signUp for next steps such as MFA
             }

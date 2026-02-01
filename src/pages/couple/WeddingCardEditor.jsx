@@ -23,6 +23,10 @@ export default function WeddingCardEditor({ wedding, onSave, initialCard }) {
   const [fontFamily, setFontFamily] = useState(initialCard?.fontFamily || "Playfair Display");
   const [textAlign, setTextAlign] = useState(initialCard?.textAlign || "center");
   const [overlayOpacity, setOverlayOpacity] = useState(initialCard?.overlayOpacity || 0.3);
+  const [resizeMode, setResizeMode] = useState(initialCard?.resizeMode || "cover");
+  const [plateType, setPlateType] = useState(initialCard?.plateType || "SOLID");
+  const [plateColor, setPlateColor] = useState(initialCard?.plateColor || "rgba(255,255,255,0.85)");
+  const [backgroundScale, setBackgroundScale] = useState(initialCard?.backgroundScale || 1.0);
   const [showColorPicker, setShowColorPicker] = useState(null);
   const [showFullPreview, setShowFullPreview] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -202,6 +206,10 @@ export default function WeddingCardEditor({ wedding, onSave, initialCard }) {
       fontFamily,
       textAlign,
       overlayOpacity,
+      resizeMode,
+      plateType,
+      plateColor,
+      backgroundScale,
       cardDesign: JSON.stringify({
         theme: selectedTheme,
         backgroundImage: backgroundType === "image" ? backgroundImage : null,
@@ -215,7 +223,11 @@ export default function WeddingCardEditor({ wedding, onSave, initialCard }) {
         nameFontSize,
         fontFamily,
         textAlign,
-        overlayOpacity
+        overlayOpacity,
+        resizeMode,
+        plateType,
+        plateColor,
+        backgroundScale
       })
     };
     onSave(cardData);

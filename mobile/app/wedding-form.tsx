@@ -1,11 +1,11 @@
-import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
 import { useState, useEffect } from 'react';
 import { getWeddingDetails, createWeddingDetails, updateWeddingDetails } from '@/utils/api';
 import { useRouter } from 'expo-router';
 import { Colors, Fonts } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 
 export default function WeddingFormScreen() {
     const { user } = useUser();
@@ -61,10 +61,10 @@ export default function WeddingFormScreen() {
             };
 
             if (isEditing) {
-                await updateWeddingDetails(user.id, payload);
+                await updateWeddingDetails(user!.id, payload);
                 Alert.alert("Success", "Wedding details updated!");
             } else {
-                await createWeddingDetails(user.id, payload);
+                await createWeddingDetails(user!.id, payload);
                 Alert.alert("Success", "Wedding details created!");
             }
             router.back();
@@ -73,10 +73,31 @@ export default function WeddingFormScreen() {
         }
     };
 
-    const onDateChange = (event, selectedDate) => {
-        const currentDate = selectedDate || formData.weddingDate;
-        setShowDatePicker(false);
-        setFormData({ ...formData, weddingDate: currentDate });
+    const onDateChange = (event: any, selectedDate?: Date) => {
+        if (Platform.OS === 'android') {
+            setShowDatePicker(false);
+            if (event.type === 'set' && selectedDate) {
+                setFormData({ ...formData, weddingDate: selectedDate });
+            }
+        } else {
+            if (selectedDate) {
+                setFormData({ ...formData, weddingDate: selectedDate });
+            }
+            setShowDatePicker(false);
+        }
+    };
+
+    const showPicker = () => {
+        if (Platform.OS === 'android') {
+            DateTimePickerAndroid.open({
+                value: formData.weddingDate,
+                onChange: onDateChange,
+                mode: 'date',
+                display: 'default',
+            });
+        } else {
+            setShowDatePicker(true);
+        }
     };
 
     return (
@@ -106,10 +127,10 @@ export default function WeddingFormScreen() {
 
                 <View style={styles.formGroup}>
                     <Text style={styles.label}>Wedding Date</Text>
-                    <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
+                    <TouchableOpacity onPress={showPicker} style={styles.input}>
                         <Text>{formData.weddingDate.toLocaleDateString()}</Text>
                     </TouchableOpacity>
-                    {showDatePicker && (
+                    {Platform.OS === 'ios' && showDatePicker && (
                         <DateTimePicker
                             value={formData.weddingDate}
                             mode="date"

@@ -6,7 +6,7 @@ import { Colors, Fonts } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { requestMeeting, syncUserToDatabase } from '@/utils/api';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 
 export default function MeetingRequestScreen() {
     const { user } = useUser();
@@ -67,9 +67,51 @@ export default function MeetingRequestScreen() {
     };
 
     const onChangeDate = (event: any, selectedDate?: Date) => {
-        const currentDate = selectedDate || date;
-        setShowDatePicker(Platform.OS === 'ios');
-        setDate(currentDate);
+        if (Platform.OS === 'android') {
+            setShowDatePicker(false);
+            if (event.type === 'set' && selectedDate) {
+                setDate(selectedDate);
+            }
+        } else {
+            // iOS logic
+            if (selectedDate) {
+                setDate(selectedDate);
+            }
+        }
+    };
+
+    const showPicker = () => {
+        if (Platform.OS === 'android') {
+            DateTimePickerAndroid.open({
+                value: date,
+                onChange: (event, selectedDate) => {
+                    if (event.type === 'set' && selectedDate) {
+                        // After date is set, open time picker
+                        const dateOnly = selectedDate;
+                        DateTimePickerAndroid.open({
+                            value: date,
+                            onChange: (event, selectedTime) => {
+                                if (event.type === 'set' && selectedTime) {
+                                    const finalDate = new Date(dateOnly);
+                                    finalDate.setHours(selectedTime.getHours());
+                                    finalDate.setMinutes(selectedTime.getMinutes());
+                                    setDate(finalDate);
+                                }
+                                setShowDatePicker(false);
+                            },
+                            mode: 'time',
+                            is24Hour: true,
+                        });
+                    } else {
+                        setShowDatePicker(false);
+                    }
+                },
+                mode: 'date',
+                minimumDate: new Date(),
+            });
+        } else {
+            setShowDatePicker(true);
+        }
     };
 
     return (
@@ -110,7 +152,7 @@ export default function MeetingRequestScreen() {
                         <Text style={styles.label}>Select Date & Time</Text>
                         <TouchableOpacity
                             style={styles.dateSelector}
-                            onPress={() => setShowDatePicker(true)}
+                            onPress={showPicker}
                         >
                             <IconSymbol name="calendar" size={20} color={Colors.light.gold} />
                             <Text style={styles.dateText}>
@@ -124,7 +166,7 @@ export default function MeetingRequestScreen() {
                             </Text>
                         </TouchableOpacity>
 
-                        {showDatePicker && (
+                        {Platform.OS === 'ios' && showDatePicker && (
                             <DateTimePicker
                                 value={date}
                                 mode="datetime"

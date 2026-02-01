@@ -24,6 +24,7 @@ import AdminPayments from './pages/admin/AdminPayments'
 import AdminReports from './pages/admin/AdminReports'
 import AdminSettings from './pages/admin/AdminSettings'
 import ManagerDashboard from './pages/manager/ManagerDashboard'
+import ManagerMissions from './pages/manager/ManagerMissions'
 import ManagerTeam from './pages/manager/ManagerTeam'
 import ManagerMessages from './pages/manager/ManagerMessages'
 import ManagerSchedule from './pages/manager/ManagerSchedule'
@@ -74,6 +75,7 @@ function App() {
 
       {/* Manager Routes */}
       <Route path="/manager/dashboard" element={<ManagerDashboard />} />
+      <Route path="/manager/missions" element={<ManagerMissions />} />
       <Route path="/manager/wedding-management" element={<WeddingManagement role="manager" />} />
       <Route path="/manager/team" element={<ManagerTeam />} />
       <Route path="/manager/messages" element={<ManagerMessages />} />

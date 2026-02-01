@@ -55,10 +55,15 @@ public class MessageService {
         return messageRepository.findLatestConversations(user.getId());
     }
     
+    
     public void markAsRead(Long messageId) {
         messageRepository.findById(messageId).ifPresent(m -> {
             m.setRead(true);
             messageRepository.save(m);
         });
+    }
+    
+    public List<Message> getMessagesByUserId(Long userId) {
+        return messageRepository.findLatestConversations(userId);
     }
 }

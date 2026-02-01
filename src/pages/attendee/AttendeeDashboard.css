@@ -1,46 +1,383 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  --wedding-gold: #d4af37;
+  --wedding-gold-dark: #b8962e;
+  --wedding-bg: #fdfdfd;
+  --wedding-text: #1a1a1a;
+  --wedding-text-soft: #6b7280;
+  --wedding-accent-bg: #f9fbfb;
+  --plate-glass: rgba(255, 255, 255, 0.75);
+}
+
 .attendee-dashboard {
   min-height: 100vh;
-  background: linear-gradient(135deg, #fdf6f0 0%, #fff9f3 100%);
+  background-color: var(--wedding-bg);
+  color: var(--wedding-text);
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
 }
 
-.attendee-dashboard .dashboard-content {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 2rem;
+/* Hero Section */
+.hero-banner {
+  height: 60vh;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-.attendee-dashboard .content-wrapper {
+.hero-image {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.attendee-dashboard .page-title {
-  font-family: "Playfair Display", serif;
-  font-size: 2.5rem;
-  color: #523c2b;
-  margin-bottom: 0.5rem;
+.hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.8));
 }
 
-.attendee-dashboard .page-subtitle {
-  font-size: 1.1rem;
-  color: #7a5d4e;
+.hero-content {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  color: white;
+  padding: 0 2rem;
+  max-width: 800px;
+}
+
+.hero-pretitle {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.5rem;
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+  opacity: 0.8;
+}
+
+.hero-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 4rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  line-height: 1.2;
+}
+
+.hero-divider {
+  width: 60px;
+  height: 2px;
+  background-color: var(--wedding-gold);
+  margin: 0 auto 2rem;
+}
+
+.hero-subtitle {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.8rem;
+  font-style: italic;
+  color: var(--wedding-gold);
+}
+
+/* Dashboard Content */
+.dashboard-main {
+  max-width: 1200px;
+  margin: -4rem auto 0;
+  position: relative;
+  z-index: 20;
+  padding: 0 2rem 4rem;
+}
+
+.editorial-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+@keyframes fadeInUP {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.editorial-card {
+  background: white;
+  border-radius: 2rem;
+  padding: 3rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  animation: fadeInUP 0.8s ease forwards;
+}
+
+.card-full-width {
+  grid-column: 1 / -1;
+}
+
+/* QR Section */
+.qr-section {
+  text-align: center;
+}
+
+.qr-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
   margin-bottom: 2rem;
 }
 
-@media (max-width: 768px) {
-  .attendee-dashboard .dashboard-content {
-    padding: 1rem;
-  }
-  
-  .attendee-dashboard .page-title {
-    font-size: 2rem;
-  }
+.qr-header span {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.3rem;
+  font-weight: 700;
 }
 
+.qr-image-wrapper {
+  margin-bottom: 2rem;
+}
 
+.qr-code-img {
+  width: 250px;
+  height: 250px;
+  border: 4px solid var(--wedding-gold);
+  padding: 1rem;
+  border-radius: 1rem;
+}
 
+.qr-badge {
+  background: var(--wedding-text);
+  color: white;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  display: inline-block;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.2rem;
+  letter-spacing: 0.2rem;
+  margin-top: 1.5rem;
+}
 
+/* Invitation Link Bar */
+.invitation-link-bar {
+  display: flex;
+  align-items: center;
+  background: var(--wedding-text);
+  color: white;
+  padding: 1.5rem 2.5rem;
+  border-radius: 1.5rem;
+  margin-top: 2rem;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  text-decoration: none;
+}
 
+.invitation-link-bar:hover {
+  transform: translateY(-5px);
+}
 
+.link-icon-box {
+  width: 50px;
+  height: 50px;
+  background: rgba(212, 175, 55, 0.2);
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 1.5rem;
+}
 
+.link-text-box {
+  flex: 1;
+}
 
+.link-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  display: block;
+}
 
+.link-subtitle {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Gallery Styles */
+.section-title-group {
+  margin-bottom: 2.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.5rem;
+  color: var(--wedding-text);
+}
+
+.section-subtitle {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.2rem;
+  color: var(--wedding-text-soft);
+}
+
+.upload-trigger {
+  background: var(--wedding-gold);
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 0.75rem;
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.masonry-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-auto-rows: 300px;
+  gap: 1.5rem;
+}
+
+.gallery-item {
+  border-radius: 1.5rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.gallery-item:nth-child(3n) {
+  grid-column: span 2;
+}
+
+.gallery-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.gallery-item:hover .gallery-media {
+  transform: scale(1.1);
+}
+
+/* Logistics */
+.logistics-card {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 3rem;
+  padding: 4rem;
+}
+
+.logistics-item {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.logistics-v-divider {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.logistics-label {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.2rem;
+  color: var(--wedding-gold);
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.logistics-value {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.4rem;
+  color: var(--wedding-text);
+  line-height: 1.4;
+}
+
+.map-btn {
+  color: var(--wedding-gold);
+  font-family: 'Playfair Display', serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-decoration: none;
+  margin-top: 1rem;
+  display: inline-block;
+}
+
+/* Modal Styling */
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
+}
+
+.digital-invitation-container {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  aspect-ratio: 0.7;
+}
+
+/* Card Specific CSS Match */
+.text-plate {
+  padding: 3rem;
+  border-radius: 2rem;
+  width: 90%;
+  margin: 0 auto;
+}
+
+.plate-editorial-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.4rem;
+  margin-bottom: 2rem;
+}
+
+.plate-names {
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.plate-divider {
+  width: 60px;
+  height: 2px;
+  margin: 2rem 0;
+}
+
+@media (max-width: 900px) {
+  .editorial-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-title {
+    font-size: 2.5rem;
+  }
+
+  .logistics-card {
+    grid-template-columns: 1fr;
+    padding: 2rem;
+  }
+
+  .logistics-v-divider {
+    height: 1px;
+    width: 100%;
+  }
+}

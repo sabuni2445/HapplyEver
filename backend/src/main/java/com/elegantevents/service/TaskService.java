@@ -59,7 +59,18 @@ public class TaskService {
     }
 
     public List<Task> getTasksByWedding(Long weddingId) {
-        return taskRepository.findByWeddingId(weddingId);
+        try {
+            System.out.println("Fetching tasks for weddingId: " + weddingId);
+            Wedding wedding = weddingRepository.findById(weddingId).orElse(null);
+            if (wedding == null) return List.of();
+            List<Task> tasks = taskRepository.findByWedding(wedding);
+            System.out.println("Found " + tasks.size() + " tasks");
+            return tasks;
+        } catch (Exception e) {
+            System.err.println("Error in getTasksByWedding: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
     
     public List<Task> getTasksByProtocol(Long protocolId) {
@@ -71,9 +82,14 @@ public class TaskService {
                 .orElseThrow(() -> new RuntimeException("Task not found"));
         
         try {
-            task.setStatus(Task.TaskStatus.valueOf(status.toUpperCase()));
+            Task.TaskStatus newStatus = Task.TaskStatus.valueOf(status.toUpperCase());
+            // If the task was rejected and we are moving away, clear the reason
+            if (task.getStatus() == Task.TaskStatus.REJECTED && newStatus != Task.TaskStatus.REJECTED) {
+                task.setRejectionReason(null);
+            }
+            task.setStatus(newStatus);
         } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Invalid status");
+            throw new RuntimeException("Invalid status: " + status);
         }
         
         return taskRepository.save(task);
@@ -92,6 +108,7 @@ public class TaskService {
                 .orElseThrow(() -> new RuntimeException("Task not found"));
         task.setStatus(Task.TaskStatus.REJECTED);
         task.setRejectionReason(reason);
+        System.out.println("DEBUG: Rejecting task " + taskId + " with reason: " + reason);
         return taskRepository.save(task);
     }
     

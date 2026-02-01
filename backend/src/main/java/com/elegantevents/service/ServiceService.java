@@ -50,6 +50,18 @@ public class ServiceService {
     }
     
     @Transactional(readOnly = true)
+    public List<com.elegantevents.model.Service> getPremiumServices() {
+        return serviceRepository.findAll().stream()
+                .filter(s -> s.getStatus() == com.elegantevents.model.Service.ServiceStatus.ACTIVE)
+                .filter(s -> {
+                    User u = userRepository.findByClerkId(s.getClerkId()).orElse(null);
+                    return u != null && u.getPackageType() == User.PackageType.PREMIUM;
+                })
+                .sorted((s1, s2) -> s2.getCreatedAt().compareTo(s1.getCreatedAt()))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<com.elegantevents.model.Service> getAllActiveServices() {
         return serviceRepository.findAll().stream()
                 .filter(s -> s.getStatus() == com.elegantevents.model.Service.ServiceStatus.ACTIVE)

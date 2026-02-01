@@ -35,14 +35,12 @@ export default function Page() {
                 console.log(`Redirecting ${userData.role} user to ${dashboardRoute}`);
                 router.replace(dashboardRoute as any);
             } else {
-                // Fallback to default if user not found in backend
-                console.warn('User not found in backend, redirecting to default dashboard');
-                router.replace('/(tabs)/couple-dashboard' as any);
+                console.warn('User not found in backend, redirecting to onboarding');
+                router.replace('/onboarding' as any);
             }
         } catch (error) {
             console.error('Error during post-signin:', error);
-            // Fallback to default dashboard on error
-            router.replace('/(tabs)/couple-dashboard' as any);
+            router.replace('/onboarding' as any);
         }
     };
 
@@ -69,7 +67,7 @@ export default function Page() {
                     // Best way is to use user.id which is reliable after setActive
                     setTimeout(async () => {
                         if (user?.id) await handleSuccessfulSignIn(user.id);
-                        else router.replace('/(tabs)/couple-dashboard' as any);
+                        else router.replace('/onboarding' as any);
                     }, 500);
                 }
             } else {
@@ -95,7 +93,7 @@ export default function Page() {
                 } else {
                     setTimeout(async () => {
                         if (user?.id) await handleSuccessfulSignIn(user.id);
-                        else router.replace('/(tabs)/couple-dashboard' as any);
+                        else router.replace('/onboarding' as any);
                     }, 500);
                 }
             } else {
@@ -182,21 +180,44 @@ export default function Page() {
                         style={styles.button}
                         onPress={async () => {
                             const normalizedEmail = emailAddress ? emailAddress.trim().toLowerCase() : '';
+                            if (!normalizedEmail || !password) {
+                                Alert.alert("Missing Information", "Please enter both email and password.");
+                                return;
+                            }
 
-                            if (normalizedEmail === 'protocol@elegantevents.com') {
-                                try {
-                                    const response = await loginWithCredentials(normalizedEmail, password);
-                                    if (response.success) {
-                                        await storeUserData(response.user, 'backend');
-                                        const dashboardRoute = getRoleDashboard(response.user.selectedRole || response.user.role);
-                                        router.replace(dashboardRoute as any);
-                                        return;
-                                    }
-                                } catch (error: any) {
-                                    Alert.alert("Login Failed", error.response?.data?.error || "Incorrect password for Protocol account.");
+                            try {
+                                // 1. Always try Staff (DB-based) login first
+                                console.log(`Attempting Staff Login for: ${normalizedEmail}`);
+                                const response = await loginWithCredentials(normalizedEmail, password);
+
+                                if (response.success && response.user) {
+                                    console.log("Staff login successful!");
+                                    await storeUserData(response.user, 'backend');
+                                    const dashboardRoute = getRoleDashboard(response.user.selectedRole || response.user.role);
+                                    router.replace(dashboardRoute as any);
+                                    return;
+                                }
+                            } catch (error: any) {
+                                // If it's a credentials error (401), we might want to still try Clerk
+                                // but if it's "This account cannot be accessed with password login", then it's a Couple
+                                const errorMsg = error.response?.data?.error || "";
+                                console.log(`Staff login failed: ${errorMsg}`);
+
+                                if (errorMsg.includes("Please use Clerk")) {
+                                    // It's a couple, fall through to Clerk
+                                    console.log("User is a Couple, falling back to Clerk...");
+                                } else if (errorMsg.includes("Invalid email or password") || errorMsg.includes("Password not set")) {
+                                    // This might be a staff user with wrong password, or a couple who hasn't been synced yet
+                                    // We'll try Clerk just in case, but keep track of this error
+                                } else {
+                                    // Other network or server errors
+                                    Alert.alert("Login Error", "Unable to connect to server. Please try again.");
                                     return;
                                 }
                             }
+
+                            // 2. Fall back to Clerk login
+                            console.log("Attempting Clerk Login...");
                             onSignInPress();
                         }}
                     >

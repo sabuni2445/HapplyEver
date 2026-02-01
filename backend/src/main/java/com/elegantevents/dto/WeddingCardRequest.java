@@ -22,5 +22,9 @@ public class WeddingCardRequest {
     private String fontFamily;
     private String textAlign;
     private Double overlayOpacity;
+    private String resizeMode;
+    private String plateType;
+    private String plateColor;
+    private Double backgroundScale;
 }
 

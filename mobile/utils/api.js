@@ -45,6 +45,47 @@ export const syncUserToDatabase = async (user) => {
   }
 };
 
+// Create a new task (for protocol assignment etc)
+export const createTask = async (taskData) => {
+  try {
+    const response = await api.post('tasks/create', taskData);
+    return response.data;
+  } catch (error) {
+    console.error("Error creating task:", error);
+    throw error;
+  }
+};
+
+export const getTasksByWedding = async (weddingId) => {
+  try {
+    const response = await api.get(`tasks/wedding/${weddingId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
+    return [];
+  }
+};
+
+export const getUsersByRole = async (role) => {
+  try {
+    const response = await api.get(`users/role/${role}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching users by role ${role}:`, error);
+    return [];
+  }
+};
+
+export const getManagerAssignments = async (managerClerkId) => {
+  try {
+    const response = await api.get(`assignments/manager/${managerClerkId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching manager assignments:", error);
+    return [];
+  }
+};
+
 // Get user from database by Clerk ID
 export const getUserFromDatabase = async (clerkId) => {
   try {
@@ -102,6 +143,17 @@ export const getAllServices = async () => {
     return response.data;
   } catch (error) {
     console.error("Error fetching services:", error);
+    throw error;
+  }
+};
+
+// Get featured services (PREMIUM package)
+export const getFeaturedServices = async () => {
+  try {
+    const response = await api.get('services/featured');
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching featured services:", error);
     throw error;
   }
 };
@@ -215,6 +267,16 @@ export const getGuests = async (coupleClerkId) => {
     return response.data;
   } catch (error) {
     console.error("Error fetching guests:", error);
+    throw error;
+  }
+};
+
+export const getGuestsByWeddingId = async (weddingId) => {
+  try {
+    const response = await api.get(`guests/wedding/${weddingId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching guests by wedding ID:", error);
     throw error;
   }
 };
@@ -393,6 +455,16 @@ export const getGuestByCode = async (code) => {
   }
 };
 
+export const checkInGuest = async (guestId) => {
+  try {
+    const response = await api.patch(`guests/${guestId}/check-in`);
+    return response.data;
+  } catch (error) {
+    console.error("Error checking in guest:", error);
+    throw error;
+  }
+};
+
 export const getWeddingById = async (id) => {
   try {
     const response = await api.get(`weddings/id/${id}`);
@@ -462,6 +534,17 @@ export const updateBookingStatus = async (bookingId, vendorClerkId, status) => {
     return response.data;
   } catch (error) {
     console.error("Error updating booking status:", error);
+    throw error;
+  }
+};
+
+// Update User Role
+export const updateUserRole = async (clerkId, selectedRole) => {
+  try {
+    const response = await api.patch(`users/${clerkId}/role`, { selectedRole });
+    return response.data;
+  } catch (error) {
+    console.error("Error updating user role:", error);
     throw error;
   }
 };
@@ -588,6 +671,160 @@ export const getManagerMeetings = async (managerId) => {
     return response.data;
   } catch (error) {
     console.error("Error fetching manager meetings:", error);
+    throw error;
+  }
+};
+
+// Messages API
+export const getMessages = async (userId) => {
+  try {
+    const response = await api.get(`messages/user/${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    return [];
+  }
+};
+
+export const sendMessage = async (senderClerkId, receiverClerkId, content) => {
+  try {
+    const response = await api.post('messages/send', {
+      senderClerkId,
+      receiverClerkId,
+      content
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error sending message:", error);
+    throw error;
+  }
+};
+
+export const sendMessageByClerkId = async (senderClerkId, receiverClerkId, content) => {
+  try {
+    const response = await api.post('messages/send', {
+      senderClerkId,
+      receiverClerkId,
+      content
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error sending message:", error);
+    throw error;
+  }
+};
+
+export const getInbox = async (clerkId) => {
+  try {
+    const response = await api.get(`messages/inbox/${clerkId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching inbox:", error);
+    return [];
+  }
+};
+
+// Meeting Requests API
+export const getMeetingRequests = async (userId) => {
+  try {
+    const response = await api.get(`meetings/couple/${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching meeting requests:", error);
+    return [];
+  }
+};
+
+export const getConversation = async (user1, user2) => {
+  try {
+    const response = await api.get('messages/conversation', {
+      params: { user1, user2 }
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching conversation:", error);
+    return [];
+  }
+};
+
+export const getTasksByProtocol = async (protocolId) => {
+  try {
+    const response = await api.get(`tasks/protocol/${protocolId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching protocol tasks:", error);
+    return [];
+  }
+};
+
+export const acceptTask = async (taskId) => {
+  try {
+    const response = await api.patch(`tasks/${taskId}/accept`);
+    return response.data;
+  } catch (error) {
+    console.error("Error accepting task:", error);
+    throw error;
+  }
+};
+
+export const rejectTask = async (taskId, reason) => {
+  try {
+    const response = await api.patch(`tasks/${taskId}/reject`, { reason });
+    return response.data;
+  } catch (error) {
+    console.error("Error rejecting task:", error);
+    throw error;
+  }
+};
+
+export const completeTask = async (taskId) => {
+  try {
+    const response = await api.patch(`tasks/${taskId}/complete`);
+    return response.data;
+  } catch (error) {
+    console.error("Error completing task:", error);
+    throw error;
+  }
+};
+
+export const getAssignmentByCouple = async (coupleClerkId) => {
+  try {
+    const response = await api.get(`assignments/wedding/couple/${coupleClerkId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching assignment:", error);
+    return null;
+  }
+};
+
+export const updateUserProfile = async (clerkId, profileData) => {
+  try {
+    const response = await api.patch(`users/${clerkId}/profile`, profileData);
+    return response.data;
+  } catch (error) {
+    console.error("Error updating user profile:", error);
+    throw error;
+  }
+};
+
+// Update wedding status
+export const updateWeddingStatus = async (weddingId, status) => {
+  try {
+    const response = await api.patch(`weddings/${weddingId}/status`, { status });
+    return response.data;
+  } catch (error) {
+    console.error("Error updating wedding status:", error);
+    throw error;
+  }
+};
+
+// Submit general feedback
+export const submitCoupleFeedback = async (feedbackData) => {
+  try {
+    const response = await api.post('feedback/submit', feedbackData);
+    return response.data;
+  } catch (error) {
+    console.error("Error submitting feedback:", error);
     throw error;
   }
 };

@@ -1,5 +1,6 @@
 package com.elegantevents.controller;
 
+import com.elegantevents.dto.BookingDTO;
 import com.elegantevents.dto.BookingRequest;
 import com.elegantevents.model.Booking;
 import com.elegantevents.service.BookingService;
@@ -41,21 +42,21 @@ public class BookingController {
     }
     
     @GetMapping("/couple/{coupleClerkId}")
-    public ResponseEntity<List<Booking>> getCoupleBookings(@PathVariable String coupleClerkId) {
-        List<Booking> bookings = bookingService.getBookingsByCouple(coupleClerkId);
+    public ResponseEntity<List<BookingDTO>> getCoupleBookings(@PathVariable String coupleClerkId) {
+        List<BookingDTO> bookings = bookingService.getBookingsByCouple(coupleClerkId);
         return ResponseEntity.ok(bookings);
     }
     
     @GetMapping("/vendor/{vendorClerkId}")
-    public ResponseEntity<List<Booking>> getVendorBookings(@PathVariable String vendorClerkId) {
-        List<Booking> bookings = bookingService.getBookingsByVendor(vendorClerkId);
+    public ResponseEntity<List<BookingDTO>> getVendorBookings(@PathVariable String vendorClerkId) {
+        List<BookingDTO> bookings = bookingService.getBookingsByVendor(vendorClerkId);
         return ResponseEntity.ok(bookings);
     }
     
     @GetMapping("/{bookingId}/{clerkId}")
-    public ResponseEntity<Booking> getBooking(@PathVariable Long bookingId, @PathVariable String clerkId) {
+    public ResponseEntity<BookingDTO> getBooking(@PathVariable Long bookingId, @PathVariable String clerkId) {
         try {
-            Booking booking = bookingService.getBookingById(bookingId, clerkId);
+            BookingDTO booking = bookingService.getBookingById(bookingId, clerkId);
             return ResponseEntity.ok(booking);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();

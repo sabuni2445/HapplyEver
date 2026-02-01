@@ -25,19 +25,22 @@ public class Task {
     private String description;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private TaskStatus status = TaskStatus.PENDING;
+    @Column(nullable = false, length = 50)
+    private TaskStatus status = TaskStatus.PENDING_ACCEPTANCE;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
     private TaskCategory category = TaskCategory.GENERAL;
 
     @ManyToOne
     @JoinColumn(name = "wedding_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Wedding wedding;
     
     // Assigned to specific protocol user
     @ManyToOne
     @JoinColumn(name = "assigned_protocol_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private User assignedProtocol;
     
     // Who is responsible? "MANAGER", "COUPLE", "PROTOCOL" (for display)
@@ -59,6 +62,7 @@ public class Task {
     }
 
     public enum TaskStatus {
+        PENDING,             // For backward compatibility
         PENDING_ACCEPTANCE,  // Waiting for protocol to accept
         ACCEPTED,            // Protocol accepted
         REJECTED,            // Protocol rejected

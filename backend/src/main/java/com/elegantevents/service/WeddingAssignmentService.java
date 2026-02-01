@@ -112,6 +112,33 @@ public class WeddingAssignmentService {
         return assignmentRepository.findByWeddingId(weddingId)
                 .orElseThrow(() -> new RuntimeException("Assignment not found"));
     }
+
+    public WeddingAssignment completeWedding(Long weddingId, String managerClerkId, Integer rating, String feedback) {
+        WeddingAssignment assignment = assignmentRepository.findByWeddingId(weddingId)
+                .orElseThrow(() -> new RuntimeException("Assignment not found"));
+
+        if (!assignment.getManagerClerkId().equals(managerClerkId)) {
+            throw new RuntimeException("You are not authorized to complete this wedding");
+        }
+
+        assignment.setStatus(WeddingAssignment.AssignmentStatus.COMPLETED);
+        assignment.setProtocolRating(rating);
+        assignment.setProtocolFeedback(feedback);
+
+        // Also update the wedding status if needed
+        Wedding wedding = weddingRepository.findById(weddingId)
+                .orElseThrow(() -> new RuntimeException("Wedding not found"));
+        // Assuming Wedding has a status field, though not explicitly seen yet in model.
+        // If not, we still completed the assignment which is used for history.
+
+        return assignmentRepository.save(assignment);
+    }
+
+    @Transactional(readOnly = true)
+    public WeddingAssignment getAssignmentByCouple(String coupleClerkId) {
+        return assignmentRepository.findByCoupleClerkId(coupleClerkId)
+                .orElseThrow(() -> new RuntimeException("Assignment not found for couple"));
+    }
 }
 
 

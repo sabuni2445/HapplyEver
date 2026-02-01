@@ -32,6 +32,11 @@ public class PaymentController {
         this.paymentService = paymentService;
         this.packageService = packageService;
     }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<Payment>> getAllPayments() {
+        return ResponseEntity.ok(paymentService.getAllPayments());
+    }
     
     @PostMapping("/chapa/initialize")
     public ResponseEntity<Map<String, Object>> initializePayment(

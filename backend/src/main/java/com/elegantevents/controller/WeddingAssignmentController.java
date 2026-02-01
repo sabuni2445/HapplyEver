@@ -82,6 +82,36 @@ public class WeddingAssignmentController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    @GetMapping("/wedding/couple/{clerkId}")
+    public ResponseEntity<WeddingAssignment> getAssignmentByCouple(@PathVariable String clerkId) {
+        try {
+            return ResponseEntity.ok(assignmentService.getAssignmentByCouple(clerkId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+    
+    @PatchMapping("/wedding/{weddingId}/complete")
+    public ResponseEntity<Map<String, Object>> completeWedding(
+            @PathVariable Long weddingId,
+            @RequestParam String managerClerkId,
+            @RequestParam Integer rating,
+            @RequestBody(required = false) Map<String, String> body) {
+        try {
+            String feedback = body != null ? body.get("feedback") : "";
+            WeddingAssignment assignment = assignmentService.completeWedding(weddingId, managerClerkId, rating, feedback);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("assignment", assignment);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+    }
 }
 
 

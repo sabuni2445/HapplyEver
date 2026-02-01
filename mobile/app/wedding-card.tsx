@@ -10,6 +10,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import * as ImagePicker from 'expo-image-picker';
 import { Video, ResizeMode } from 'expo-av';
+import { CATEGORY_IMAGES, PRESET_COLORS } from '../constants/backgrounds';
+import { DESIGN_CONSTANTS, getFontStack } from '../constants/design';
 
 // Theme Background Assets
 const IslamicBG = require('../assets/images/backgrounds/islamic_bg.png');
@@ -29,20 +31,12 @@ const PRESET_BACKGROUNDS = [
     { id: 'ethiopian_modern', name: 'Ethiopian Modern', url: 'https://images.unsplash.com/photo-1584974232726-67ff93839172?q=80&w=1000', type: 'IMAGE' },
 ];
 
-const PRESET_COLORS = [
-    '#d4af37', '#ffffff', '#000000', '#2a2828', '#f3f2f2',
-    '#e11d48', '#065f46', '#1e40af', '#7c3aed', '#d48bb8',
-    '#78350f', '#fbbf24', '#059669', '#3b82f6', '#fef3c7'
-];
-
 const THEMES = [
-    { id: "gold_glamour", name: "Gold Glamour", color: "#d4af37", bg: "#1a1a1a", text: "#ffffff", accent: "#d4af37", font: "Playfair", bgImage: GoldBG },
-    { id: "ivory_classic", name: "Ivory Classic", color: "#d4af37", bg: "#fdf6f0", text: "#2a2828", accent: "#d4af37", font: "Playfair", bgImage: GoldBG },
-    { id: "midnight_royal", name: "Midnight Royal", color: "#c5a059", bg: "#001f3f", text: "#ffffff", accent: "#c5a059", font: "Cormorant", bgImage: 'https://images.unsplash.com/photo-1550005810-3796d84a754b?q=80&w=2000' },
-    { id: "romantic_pink", name: "Romantic Blush", color: "#d48bb8", bg: "#fff5f8", text: "#4a3a3a", accent: "#d48bb8", font: "Cormorant", bgImage: RomanticBG },
-    { id: "islamic_tradition", name: "Islamic Tradition", color: "#d4af37", bg: "#7f1d1d", text: "#ffffff", accent: "#d4af37", font: "Playfair", bgImage: IslamicRedBG },
-    { id: "christian_wedding", name: "Christian Wedding", color: "#1e40af", bg: "#eff6ff", text: "#1e3a8a", accent: "#3b82f6", font: "Cormorant", bgImage: ChristianFloralBG },
-    { id: "habesha_heritage", name: "Habesha Heritage", color: "#78350f", bg: "#fffbeb", text: "#451a03", accent: "#78350f", font: "Playfair", bgImage: HabeshaTradBG },
+    { id: "habesha", name: "Habesha", color: "#78350f" },
+    { id: "islamic", name: "Islamic", color: "#b91c1c" },
+    { id: "christian", name: "Christian", color: "#1e40af" },
+    { id: "modern", name: "Modern", color: "#1a1a1a" },
+    { id: "romantic", name: "Romantic", color: "#be185d" },
 ];
 
 export default function WeddingCardScreen() {
@@ -53,20 +47,25 @@ export default function WeddingCardScreen() {
     if (!user) return null;
     const [selectedTheme, setSelectedTheme] = useState('classic');
     const [message, setMessage] = useState('We invite you to celebrate our special day!');
-    const [backgroundImage, setBackgroundImage] = useState('');
+    const [backgroundImage, setBackgroundImage] = useState('https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2000');
     const [backgroundType, setBackgroundType] = useState<'IMAGE' | 'VIDEO'>('IMAGE');
     const [fontStyle, setFontStyle] = useState('Playfair');
-    const [fontSize, setFontSize] = useState(1.5);
-    const [namesFontSize, setNamesFontSize] = useState(4.2);
+    const [fontSize, setFontSize] = useState(1.4);
+    const [namesFontSize, setNamesFontSize] = useState(4.0);
+    const [rules, setRules] = useState('');
     const [textColor, setTextColor] = useState('#FFFFFF');
     const [backgroundColor, setBackgroundColor] = useState('#2a2828');
     const [accentColor, setAccentColor] = useState('#f3f2f2');
     const [overlayOpacity, setOverlayOpacity] = useState(50);
     const [alignment, setAlignment] = useState('center');
+    const [resizeMode, setResizeMode] = useState<'cover' | 'contain'>('cover');
+    const [plateType, setPlateType] = useState<'GLASS' | 'SOLID' | 'NONE'>('GLASS');
+    const [plateColor, setPlateColor] = useState('rgba(255,255,255,0.85)');
     const [aiPrompt, setAiPrompt] = useState('');
     const [generating, setGenerating] = useState(false);
     const [generatedAiImage, setGeneratedAiImage] = useState('');
     const [showPreviewModal, setShowPreviewModal] = useState(false);
+    const [backgroundScale, setBackgroundScale] = useState(1.0);
 
     // Wedding Details State
     const [partnerName, setPartnerName] = useState('');
@@ -96,6 +95,32 @@ export default function WeddingCardScreen() {
                         setAccentColor(card.accentColor || '#f3f2f2');
                         setOverlayOpacity(card.overlayOpacity || 50);
                         setAlignment(card.textAlign || 'center');
+                        setResizeMode(card.resizeMode || 'cover');
+                        setPlateType(card.plateType || 'GLASS');
+                        setPlateColor(card.plateColor || 'rgba(255,255,255,0.85)');
+                        setBackgroundScale(card.backgroundScale || 1.0);
+
+                        // Resolve asset images and videos from stable IDs or direct URLs
+                        if (card.backgroundVideo) {
+                            setBackgroundImage(card.backgroundVideo);
+                            setBackgroundType('VIDEO');
+                        } else if (card.backgroundImage) {
+                            const savedImg = card.backgroundImage;
+                            if (savedImg.startsWith('ASSET:')) {
+                                const assetId = savedImg.replace('ASSET:', '');
+                                for (const cat in CATEGORY_IMAGES) {
+                                    const preset = CATEGORY_IMAGES[cat].find(p => p.id === assetId);
+                                    if (preset) {
+                                        setBackgroundImage(preset.url);
+                                        setBackgroundType(preset.type);
+                                        break;
+                                    }
+                                }
+                            } else {
+                                setBackgroundImage(card.backgroundImage);
+                                setBackgroundType('IMAGE');
+                            }
+                        }
                     }
 
                     const details = await getWeddingDetails(user.id);
@@ -121,6 +146,7 @@ export default function WeddingCardScreen() {
 
                         setLocation(details.location || '');
                         setVenue(details.venue || '');
+                        setRules(details.rules || '');
                     }
                 } catch (err) {
                     console.error("Error loading wedding card/details:", err);
@@ -154,11 +180,35 @@ export default function WeddingCardScreen() {
 
     const handleSave = async () => {
         try {
-            await createOrUpdateWeddingCard(user.id, {
-                digitalCardEnabled: isEnabled,
+            // Determine if we are saving a preset asset or a custom URI
+            let finalImage = backgroundImage;
+            let finalVideo = '';
+
+            // If it's a number, it's a local require() asset
+            if (typeof backgroundImage === 'number') {
+                // Find the ID for this asset to store it stably
+                let assetId = '';
+                for (const cat in CATEGORY_IMAGES) {
+                    const preset = CATEGORY_IMAGES[cat].find(p => p.url === backgroundImage);
+                    if (preset) {
+                        assetId = preset.id;
+                        break;
+                    }
+                }
+                if (assetId) {
+                    finalImage = `ASSET:${assetId}`;
+                }
+            }
+
+            if (backgroundType === 'VIDEO' && typeof backgroundImage === 'string') {
+                finalVideo = backgroundImage;
+                finalImage = ''; // Clear image if it's a video
+            }
+
+            const cardDesignObj = {
                 theme: selectedTheme,
+                digitalCardEnabled: isEnabled,
                 customText: message,
-                backgroundImage,
                 fontFamily: fontStyle,
                 fontSize: String(fontSize),
                 nameFontSize: String(namesFontSize),
@@ -166,7 +216,18 @@ export default function WeddingCardScreen() {
                 backgroundColor,
                 accentColor,
                 overlayOpacity,
-                textAlign: alignment
+                textAlign: alignment,
+                resizeMode,
+                plateType,
+                plateColor,
+                backgroundScale
+            };
+
+            await createOrUpdateWeddingCard(user.id, {
+                ...cardDesignObj,
+                backgroundImage: finalImage ? String(finalImage) : '',
+                backgroundVideo: finalVideo || '',
+                cardDesign: JSON.stringify(cardDesignObj)
             });
             Alert.alert("Success", "Wedding card updated!");
             router.back();
@@ -223,57 +284,23 @@ export default function WeddingCardScreen() {
                         <Text style={styles.sectionTitle}>Customize Your Card</Text>
 
                         <View style={styles.controlGroup}>
-                            <Text style={styles.subLabel}>Theme</Text>
+                            <Text style={styles.subLabel}>1. Select Style Category</Text>
                             <View style={styles.themesGrid}>
                                 {THEMES.map((theme) => (
                                     <TouchableOpacity
                                         key={theme.id}
-                                        style={[styles.themeOption, selectedTheme === theme.id && styles.selectedTheme, { borderColor: theme.color }]}
-                                        onPress={() => {
-                                            setSelectedTheme(theme.id);
-                                            setBackgroundColor(theme.bg);
-                                            setTextColor(theme.text);
-                                            setAccentColor(theme.accent);
-                                            setFontStyle(theme.font);
-                                            if (theme.bgImage) {
-                                                setBackgroundImage(theme.bgImage);
-                                                setBackgroundType('IMAGE');
-                                                setOverlayOpacity(30);
-                                            }
-                                            setShowPreviewModal(true);
-                                        }}
+                                        style={[styles.themeOption, selectedTheme === theme.id && styles.selectedTheme]}
+                                        onPress={() => setSelectedTheme(theme.id)}
                                     >
                                         <View style={[styles.colorPreview, { backgroundColor: theme.color }]} />
                                         <Text style={styles.themeName}>{theme.name}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
-                        </View>
 
-                        <View style={styles.controlGroup}>
-                            <Text style={styles.subLabel}>Background Type</Text>
-                            <View style={styles.optionsRow}>
-                                <TouchableOpacity
-                                    style={[styles.optionButton, backgroundType === 'IMAGE' && styles.selectedOption]}
-                                    onPress={() => setBackgroundType('IMAGE')}
-                                >
-                                    <IconSymbol name="photo" size={18} color={backgroundType === 'IMAGE' ? '#fff' : Colors.light.text} />
-                                    <Text style={[styles.optionText, backgroundType === 'IMAGE' && { color: '#fff' }]}>Image</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.optionButton, backgroundType === 'VIDEO' && styles.selectedOption]}
-                                    onPress={() => setBackgroundType('VIDEO')}
-                                >
-                                    <IconSymbol name="video" size={18} color={backgroundType === 'VIDEO' ? '#fff' : Colors.light.text} />
-                                    <Text style={[styles.optionText, backgroundType === 'VIDEO' && { color: '#fff' }]}>Video</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-
-                        <View style={styles.controlGroup}>
-                            <Text style={styles.subLabel}>Suggested Backgrounds</Text>
+                            <Text style={[styles.subLabel, { marginTop: 20 }]}>2. Choose Your Background</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
-                                {PRESET_BACKGROUNDS.map((preset) => (
+                                {CATEGORY_IMAGES[selectedTheme]?.map((preset) => (
                                     <TouchableOpacity
                                         key={preset.id}
                                         onPress={() => {
@@ -281,15 +308,53 @@ export default function WeddingCardScreen() {
                                             setBackgroundType(preset.type as any);
                                             setOverlayOpacity(30);
                                         }}
-                                        style={[styles.presetOption, backgroundImage === preset.url && styles.selectedPreset]}
+                                        style={[styles.presetOption, (backgroundImage === preset.url || (typeof backgroundImage === 'number' && backgroundImage === preset.url)) && styles.selectedPreset]}
                                     >
-                                        <Image source={{ uri: preset.url }} style={styles.presetImage} />
+                                        <View style={styles.imageWrapper}>
+                                            {preset.type === 'VIDEO' ? (
+                                                <View style={[styles.presetImage, { backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }]}>
+                                                    <IconSymbol name="video.fill" size={32} color="#fff" />
+                                                </View>
+                                            ) : (
+                                                <Image source={typeof preset.url === 'number' ? preset.url : { uri: preset.url }} style={styles.presetImage} />
+                                            )}
+                                        </View>
                                         <Text style={styles.presetText} numberOfLines={1}>{preset.name}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </ScrollView>
+                        </View>
 
-                            <Text style={[styles.subLabel, { marginTop: 20 }]}>Custom Background {backgroundType === 'IMAGE' ? 'Image' : 'Video'}</Text>
+                        <View style={styles.controlGroup}>
+                            <Text style={styles.subLabel}>Media Settings</Text>
+                            <View style={styles.optionsRow}>
+                                <TouchableOpacity
+                                    style={[styles.optionButton, backgroundType === 'IMAGE' && styles.selectedOption]}
+                                    onPress={() => setBackgroundType('IMAGE')}
+                                >
+                                    <IconSymbol name="photo" size={18} color={backgroundType === 'IMAGE' ? '#fff' : Colors.light.text} />
+                                    <Text style={[styles.optionText, backgroundType === 'IMAGE' && { color: '#fff' }]}>Force Image</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.optionButton, backgroundType === 'VIDEO' && styles.selectedOption]}
+                                    onPress={() => setBackgroundType('VIDEO')}
+                                >
+                                    <IconSymbol name="video" size={18} color={backgroundType === 'VIDEO' ? '#fff' : Colors.light.text} />
+                                    <Text style={[styles.optionText, backgroundType === 'VIDEO' && { color: '#fff' }]}>Force Video</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.optionButton}
+                                    onPress={() => setShowPreviewModal(true)}
+                                >
+                                    <IconSymbol name="eye" size={18} color={Colors.light.gold} />
+                                    <Text style={[styles.optionText, { color: Colors.light.gold }]}>Preview Fullscreen</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        <View style={styles.controlGroup}>
+                            <Text style={styles.subLabel}>Local Upload</Text>
+                            <Text style={styles.description}>You can also upload your own romantic background.</Text>
                             <TouchableOpacity style={styles.uploadButton} onPress={() => pickMedia(backgroundType)}>
                                 <IconSymbol name={backgroundType === 'IMAGE' ? "photo" : "video"} size={24} color={Colors.light.text} />
                                 <Text style={styles.uploadButtonText}>
@@ -298,7 +363,7 @@ export default function WeddingCardScreen() {
                             </TouchableOpacity>
                             {backgroundImage ? (
                                 <TouchableOpacity onPress={() => setBackgroundImage('')} style={styles.removeButton}>
-                                    <Text style={styles.removeButtonText}>Remove Background</Text>
+                                    <Text style={styles.removeButtonText}>Reset to Default</Text>
                                 </TouchableOpacity>
                             ) : null}
                         </View>
@@ -462,6 +527,20 @@ export default function WeddingCardScreen() {
                                 ))}
                             </ScrollView>
 
+                            <Text style={styles.miniLabel}>TextBox Color (Solid)</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorPalette}>
+                                {PRESET_COLORS.map((color) => (
+                                    <TouchableOpacity
+                                        key={`plate-${color}`}
+                                        onPress={() => {
+                                            setPlateColor(color);
+                                            setPlateType('SOLID');
+                                        }}
+                                        style={[styles.colorSwatch, { backgroundColor: color }, plateColor === color && plateType === 'SOLID' && styles.selectedSwatch]}
+                                    />
+                                ))}
+                            </ScrollView>
+
                             <Text style={styles.miniLabel}>Background Color</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorPalette}>
                                 {PRESET_COLORS.map((color) => (
@@ -483,6 +562,64 @@ export default function WeddingCardScreen() {
                                     />
                                 ))}
                             </ScrollView>
+
+                            <Text style={styles.miniLabel}>TextBox Design</Text>
+                            <View style={styles.optionsRow}>
+                                <TouchableOpacity
+                                    style={[styles.optionButton, plateType === 'GLASS' && styles.selectedOption]}
+                                    onPress={() => setPlateType('GLASS')}
+                                >
+                                    <Text style={[styles.optionText, plateType === 'GLASS' && { color: '#fff' }]}>Glassmorphism</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.optionButton, plateType === 'SOLID' && styles.selectedOption]}
+                                    onPress={() => setPlateType('SOLID')}
+                                >
+                                    <Text style={[styles.optionText, plateType === 'SOLID' && { color: '#fff' }]}>Solid Color</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.optionButton, plateType === 'NONE' && styles.selectedOption]}
+                                    onPress={() => setPlateType('NONE')}
+                                >
+                                    <Text style={[styles.optionText, plateType === 'NONE' && { color: '#fff' }]}>No Background</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            <Text style={styles.miniLabel}>Background Fitting</Text>
+                            <View style={styles.optionsRow}>
+                                <TouchableOpacity
+                                    style={[styles.optionButton, resizeMode === 'cover' && styles.selectedOption]}
+                                    onPress={() => setResizeMode('cover')}
+                                >
+                                    <IconSymbol name="aspectratio.fill" size={18} color={resizeMode === 'cover' ? '#fff' : Colors.light.text} />
+                                    <Text style={[styles.optionText, resizeMode === 'cover' && { color: '#fff' }]}>Fill Screen</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.optionButton, resizeMode === 'contain' && styles.selectedOption]}
+                                    onPress={() => setResizeMode('contain')}
+                                >
+                                    <IconSymbol name="aspectratio" size={18} color={resizeMode === 'contain' ? '#fff' : Colors.light.text} />
+                                    <Text style={[styles.optionText, resizeMode === 'contain' && { color: '#fff' }]}>Fit Screen (Whole)</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.adjustmentItem}>
+                                <View style={styles.rowBetween}>
+                                    <Text style={styles.miniLabel}>Background Zoom/Scale</Text>
+                                    <Text style={styles.adjustmentValue}>{backgroundScale.toFixed(2)}x</Text>
+                                </View>
+                                <Slider
+                                    style={styles.slider}
+                                    minimumValue={0.5}
+                                    maximumValue={3.0}
+                                    step={0.05}
+                                    value={backgroundScale}
+                                    onValueChange={setBackgroundScale}
+                                    minimumTrackTintColor={Colors.light.gold}
+                                    maximumTrackTintColor="#e5e7eb"
+                                    thumbTintColor={Colors.light.gold}
+                                />
+                            </View>
                         </View>
 
                         <Text style={styles.sectionTitle}>Preview</Text>
@@ -493,15 +630,15 @@ export default function WeddingCardScreen() {
                             {backgroundImage ? (
                                 backgroundType === 'VIDEO' ? (
                                     <Video
-                                        style={StyleSheet.absoluteFillObject}
+                                        style={[StyleSheet.absoluteFillObject, { transform: [{ scale: backgroundScale }] }]}
                                         source={typeof backgroundImage === 'string' ? { uri: backgroundImage } : backgroundImage}
-                                        resizeMode={ResizeMode.COVER}
+                                        resizeMode={resizeMode === 'cover' ? ResizeMode.COVER : ResizeMode.CONTAIN}
                                         isLooping
                                         shouldPlay
                                         isMuted
                                     />
                                 ) : (
-                                    <Image source={typeof backgroundImage === 'string' ? { uri: backgroundImage } : backgroundImage} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+                                    <Image source={typeof backgroundImage === 'string' ? { uri: backgroundImage } : backgroundImage} style={[StyleSheet.absoluteFillObject, { transform: [{ scale: backgroundScale }] }]} resizeMode={resizeMode} />
                                 )
                             ) : null}
 
@@ -511,42 +648,62 @@ export default function WeddingCardScreen() {
                                 opacity: overlayOpacity / 100
                             }]} />
 
-                            <View style={[styles.previewContent, {
-                                alignItems: alignment === 'center' ? 'center' : alignment === 'left' ? 'flex-start' : 'flex-end',
-                                borderColor: accentColor,
-                                borderLeftWidth: alignment === 'left' ? 4 : 0,
-                                borderRightWidth: alignment === 'right' ? 4 : 0,
-                                paddingHorizontal: 20
-                            }]}>
+                            <View style={styles.previewContent}>
                                 <View style={[styles.textPlate, {
-                                    backgroundColor: 'rgba(255,255,255,0.75)',
-                                    padding: 24,
-                                    borderRadius: 16,
-                                    width: '85%',
-                                    borderWidth: 1,
-                                    borderColor: 'rgba(255,255,255,0.4)',
+                                    backgroundColor: plateType === 'SOLID' ? plateColor : plateType === 'GLASS' ? 'rgba(255,255,255,0.75)' : 'transparent',
+                                    borderWidth: plateType === 'NONE' ? 0 : 1,
+                                    borderColor: plateType === 'NONE' ? 'transparent' : 'rgba(255,255,255,0.5)',
+                                    shadowOpacity: plateType === 'NONE' ? 0 : 0.1,
+                                    alignItems: alignment === 'center' ? 'center' : alignment === 'left' ? 'flex-start' : 'flex-end',
+                                    borderLeftWidth: alignment === 'left' ? 4 : plateType === 'NONE' ? 0 : 1,
+                                    borderRightWidth: alignment === 'right' ? 4 : plateType === 'NONE' ? 0 : 1,
+                                    borderLeftColor: alignment === 'left' ? accentColor : 'rgba(255,255,255,0.5)',
+                                    borderRightColor: alignment === 'right' ? accentColor : 'rgba(255,255,255,0.5)',
+                                    padding: 20, // Slightly less for live preview
                                 }]}>
-                                    <Text style={[styles.previewTitle, {
-                                        fontFamily: fontStyle === 'Roboto' ? 'System' : (Fonts as any)[fontStyle]?.Bold,
-                                        color: textColor,
-                                        fontSize: namesFontSize * 9,
-                                        textAlign: alignment as any,
-                                        textShadowColor: 'rgba(0, 0, 0, 0.2)',
-                                        textShadowOffset: { width: 1, height: 1 },
-                                        textShadowRadius: 3
-                                    }]}>
-                                        {user?.firstName} & Partner
+                                    <Text style={[styles.modalEditorialTitle, { color: accentColor || Colors.light.gold, textAlign: alignment as any, marginBottom: 10, fontSize: 10 }]}>
+                                        THE WEDDING OF
                                     </Text>
-                                    <View style={[styles.divider, { backgroundColor: accentColor, alignSelf: 'center' }]} />
-                                    <Text style={[styles.previewMessage, {
-                                        fontFamily: fontStyle === 'Roboto' ? 'System' : (Fonts as any)[fontStyle]?.Regular,
+                                    <Text style={[styles.previewTitle, {
+                                        fontFamily: getFontStack(fontStyle, 'Bold'),
                                         color: textColor,
-                                        fontSize: fontSize * 11,
+                                        fontSize: namesFontSize * DESIGN_CONSTANTS.MULT_NAME * 0.7, // Scaled down for tiny preview
                                         textAlign: alignment as any,
-                                        lineHeight: fontSize * 18
+                                        lineHeight: namesFontSize * DESIGN_CONSTANTS.MULT_NAME * 0.8
+                                    }]}>
+                                        {user?.firstName} & {partnerName || 'Partner'}
+                                    </Text>
+                                    <View style={[styles.divider, {
+                                        backgroundColor: accentColor,
+                                        alignSelf: alignment === 'center' ? 'center' : alignment === 'left' ? 'flex-start' : 'flex-end',
+                                        marginVertical: 10,
+                                        width: 40
+                                    }]} />
+                                    <Text style={[styles.previewMessage, {
+                                        fontFamily: getFontStack(fontStyle, 'Regular'),
+                                        color: textColor,
+                                        fontSize: fontSize * DESIGN_CONSTANTS.MULT_BODY * 0.7, // Scaled down
+                                        textAlign: alignment as any,
+                                        lineHeight: fontSize * DESIGN_CONSTANTS.MULT_BODY * 0.9
                                     }]}>
                                         {message}
                                     </Text>
+
+                                    {(weddingDate || location) && (
+                                        <View style={{ marginTop: 5, alignItems: alignment as any }}>
+                                            <Text style={[styles.previewDetailText, { color: textColor, fontFamily: Fonts.Cormorant.Bold, fontSize: 15 }]}>
+                                                {weddingDate} {weddingTime ? `@ ${weddingTime}` : ''}
+                                            </Text>
+                                            <Text style={[styles.previewDetailText, { color: textColor, fontFamily: Fonts.Cormorant.Regular, marginTop: 4, fontSize: 13, opacity: 0.9 }]}>
+                                                {location} {venue ? `(${venue})` : ''}
+                                            </Text>
+                                            {rules ? (
+                                                <Text style={[styles.previewDetailText, { color: textColor, fontFamily: Fonts.Cormorant.Regular, marginTop: 8, fontSize: 11, fontStyle: 'italic', opacity: 0.8 }]}>
+                                                    NB: {rules}
+                                                </Text>
+                                            ) : null}
+                                        </View>
+                                    )}
                                 </View>
                             </View>
                         </View>
@@ -583,15 +740,16 @@ export default function WeddingCardScreen() {
                                 {backgroundImage ? (
                                     backgroundType === 'VIDEO' ? (
                                         <Video
-                                            style={StyleSheet.absoluteFillObject}
-                                            source={{ uri: backgroundImage }}
-                                            resizeMode={ResizeMode.COVER}
+                                            style={[StyleSheet.absoluteFillObject, { transform: [{ scale: backgroundScale }] }]}
+                                            source={typeof backgroundImage === 'string' ? { uri: backgroundImage } : backgroundImage}
+                                            resizeMode={resizeMode === 'cover' ? ResizeMode.COVER : ResizeMode.CONTAIN}
                                             isLooping
                                             shouldPlay
                                             isMuted
+                                            useNativeControls={false}
                                         />
                                     ) : (
-                                        <Image source={typeof backgroundImage === 'string' ? { uri: backgroundImage } : backgroundImage} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+                                        <Image source={typeof backgroundImage === 'string' ? { uri: backgroundImage } : backgroundImage} style={[StyleSheet.absoluteFillObject, { transform: [{ scale: backgroundScale }] }]} resizeMode={resizeMode} />
                                     )
                                 ) : null}
 
@@ -608,32 +766,46 @@ export default function WeddingCardScreen() {
                                     paddingHorizontal: 20
                                 }]}>
                                     <View style={[styles.textPlate, {
-                                        backgroundColor: 'rgba(255,255,255,0.75)',
-                                        padding: 28,
-                                        borderRadius: 20,
-                                        width: '85%',
-                                        borderWidth: 1,
-                                        borderColor: 'rgba(255,255,255,0.5)',
+                                        backgroundColor: plateType === 'SOLID' ? plateColor : plateType === 'GLASS' ? 'rgba(255,255,255,0.75)' : 'transparent',
+                                        borderWidth: plateType === 'NONE' ? 0 : 1,
+                                        borderBottomWidth: plateType === 'NONE' ? 0 : 1,
+                                        borderColor: plateType === 'NONE' ? 'transparent' : 'rgba(255,255,255,0.5)',
+                                        shadowOpacity: plateType === 'NONE' ? 0 : 0.1,
+                                        alignItems: alignment === 'center' ? 'center' : alignment === 'left' ? 'flex-start' : 'flex-end',
+                                        borderLeftWidth: alignment === 'left' ? 4 : plateType === 'NONE' ? 0 : 1,
+                                        borderRightWidth: alignment === 'right' ? 4 : plateType === 'NONE' ? 0 : 1,
+                                        borderLeftColor: alignment === 'left' ? accentColor : 'rgba(255,255,255,0.5)',
+                                        borderRightColor: alignment === 'right' ? accentColor : 'rgba(255,255,255,0.5)',
+                                        padding: DESIGN_CONSTANTS.PLATE_PADDING,
+                                        width: DESIGN_CONSTANTS.PLATE_WIDTH as any,
+                                        borderRadius: DESIGN_CONSTANTS.PLATE_RADIUS,
                                     }]}>
+                                        <Text style={[styles.modalEditorialTitle, { color: accentColor || Colors.light.gold, textAlign: alignment as any }]}>
+                                            THE WEDDING OF
+                                        </Text>
                                         <Text style={[styles.previewTitle, {
-                                            fontFamily: fontStyle === 'Roboto' ? 'System' : (Fonts as any)[fontStyle]?.Bold,
+                                            fontFamily: getFontStack(fontStyle, 'Bold'),
                                             color: textColor,
-                                            fontSize: namesFontSize * 8,
+                                            fontSize: namesFontSize * DESIGN_CONSTANTS.MULT_NAME,
                                             textAlign: alignment as any,
                                             textShadowColor: 'rgba(0, 0, 0, 0.3)',
                                             textShadowOffset: { width: 1, height: 2 },
-                                            textShadowRadius: 4
+                                            textShadowRadius: 4,
+                                            lineHeight: namesFontSize * DESIGN_CONSTANTS.MULT_NAME * 1.2
                                         }]}>
                                             {user?.firstName} & {partnerName || 'Partner'}
                                         </Text>
-                                        <View style={[styles.divider, { backgroundColor: accentColor, alignSelf: 'center' }]} />
+                                        <View style={[styles.divider, {
+                                            backgroundColor: accentColor,
+                                            alignSelf: alignment === 'center' ? 'center' : alignment === 'left' ? 'flex-start' : 'flex-end'
+                                        }]} />
                                         <Text style={[styles.previewMessage, {
-                                            fontFamily: fontStyle === 'Roboto' ? 'System' : (Fonts as any)[fontStyle]?.Regular,
+                                            fontFamily: getFontStack(fontStyle, 'Regular'),
                                             color: textColor,
-                                            fontSize: fontSize * 10,
+                                            fontSize: fontSize * DESIGN_CONSTANTS.MULT_BODY,
                                             textAlign: alignment as any,
                                             marginBottom: 12,
-                                            lineHeight: fontSize * 16
+                                            lineHeight: fontSize * DESIGN_CONSTANTS.MULT_BODY * 1.5
                                         }]}>
                                             {message}
                                         </Text>
@@ -641,15 +813,20 @@ export default function WeddingCardScreen() {
                                         {(weddingDate || location) && (
                                             <View style={{ marginTop: 10, alignItems: alignment as any }}>
                                                 {weddingDate && (
-                                                    <Text style={[styles.previewDetail, { color: textColor, fontFamily: Fonts.Cormorant.Regular, fontSize: 16 }]}>
+                                                    <Text style={[styles.previewDetail, { color: textColor, fontFamily: Fonts.Cormorant.Bold, fontSize: 20 }]}>
                                                         {weddingDate} {weddingTime ? `at ${weddingTime}` : ''}
                                                     </Text>
                                                 )}
                                                 {location && (
-                                                    <Text style={[styles.previewDetail, { color: textColor, fontFamily: Fonts.Cormorant.Regular, marginTop: 6, fontSize: 14, opacity: 0.9 }]}>
+                                                    <Text style={[styles.previewDetail, { color: textColor, fontFamily: Fonts.Cormorant.Regular, marginTop: 10, fontSize: 18, opacity: 0.9 }]}>
                                                         {location} {venue ? `(${venue})` : ''}
                                                     </Text>
                                                 )}
+                                                {rules ? (
+                                                    <Text style={[styles.previewDetail, { color: textColor, fontFamily: Fonts.Cormorant.Regular, marginTop: 15, fontSize: 14, fontStyle: 'italic', opacity: 0.8 }]}>
+                                                        Guidelines: {rules}
+                                                    </Text>
+                                                ) : null}
                                             </View>
                                         )}
                                     </View>
@@ -1048,14 +1225,37 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     textPlate: {
+        backgroundColor: 'rgba(255,255,255,0.85)',
+        padding: 24,
+        borderRadius: 20,
+        width: '88%',
+        alignSelf: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(212, 175, 55, 0.2)',
         alignItems: 'center',
         justifyContent: 'center',
-        alignSelf: 'center',
-        // Premium glass effect
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.1,
         shadowRadius: 15,
-        elevation: 8,
+        elevation: 5,
     },
+    previewDetailText: {
+        textAlign: 'center',
+    },
+    modalEditorialTitle: {
+        fontFamily: Fonts.Playfair.Bold,
+        fontSize: 12,
+        letterSpacing: 4,
+        marginBottom: 20,
+    },
+    imageWrapper: {
+        width: 100,
+        height: 100,
+        borderRadius: 12,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: '#eee',
+        marginBottom: 6,
+    }
 });

@@ -83,5 +83,12 @@ public class WeddingService {
         return weddingRepository.findById(weddingId)
                 .orElseThrow(() -> new RuntimeException("Wedding not found"));
     }
+
+    public Wedding updateStatus(Long weddingId, Wedding.WeddingStatus status) {
+        Wedding wedding = weddingRepository.findById(weddingId)
+                .orElseThrow(() -> new RuntimeException("Wedding not found"));
+        wedding.setStatus(status);
+        return weddingRepository.save(wedding);
+    }
 }
 

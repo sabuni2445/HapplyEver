@@ -11,7 +11,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/meetings")
-@CrossOrigin(origins = "*")
 public class MeetingController {
 
     private final MeetingService meetingService;

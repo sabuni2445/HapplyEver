@@ -1,11 +1,19 @@
-import { StyleSheet, View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, RefreshControl, TouchableOpacity, ActivityIndicator, Image, Dimensions } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
-import { useEffect, useState, useCallback } from 'react';
-import { getWeddingDetails, syncUserToDatabase, getServices, getVendorBookings } from '@/utils/api';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { getWeddingDetails, syncUserToDatabase, getServices, getVendorBookings, getUserFromDatabase, getAllServices, getFeaturedServices } from '@/utils/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Colors, Fonts } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import ProtocolDashboard from '@/components/ProtocolDashboard';
+import { Video, ResizeMode } from 'expo-av';
+import Animated, { FadeInUp, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, interpolate, Extrapolate } from 'react-native-reanimated';
+
+const { width, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const HERO_HEIGHT = 450;
 
 export default function HomeScreen() {
   const { user, isLoaded } = useUser();
@@ -15,40 +23,54 @@ export default function HomeScreen() {
   const [daysLeft, setDaysLeft] = useState<{ days: number; hours: number; minutes: number } | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [stats, setStats] = useState<{ services: number; pendingBookings: number; package: string } | null>(null);
+  const [featuredServices, setFeaturedServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [localUser, setLocalUser] = useState<any>(null);
 
   const loadData = async () => {
-    if (user) {
+    if (user || localUser) {
+      const currentUserId = user?.id || localUser?.clerkId || localUser?.id;
       try {
-        const dbUser = await syncUserToDatabase(user);
-        console.log("DEBUG: dbUser:", JSON.stringify(dbUser));
+        let dbUser;
+        if (user) {
+          dbUser = await syncUserToDatabase(user);
+        } else {
+          dbUser = localUser;
+        }
+
         const userRole = dbUser?.user?.selectedRole || dbUser?.selectedRole || 'USER';
-        console.log("DEBUG: Determined userRole:", userRole);
         setRole(userRole === 'USER' ? 'COUPLE' : userRole);
 
         if (userRole === 'VENDOR') {
           const [vendorServices, vendorBookings] = await Promise.all([
-            getServices(user.id),
-            getVendorBookings(user.id)
+            getServices(currentUserId),
+            getVendorBookings(currentUserId)
           ]);
           setStats({
             services: vendorServices.length,
             pendingBookings: vendorBookings.filter((b: any) => b.status === 'PENDING').length,
             package: dbUser?.user?.packageType || dbUser?.packageType || 'NORMAL'
           });
+          setLoading(false);
           return;
         } else if (userRole === 'PROTOCOL') {
-          router.replace('/(tabs)/protocol');
+          setRole('PROTOCOL');
+          setLoading(false);
           return;
         } else if (userRole === 'MANAGER' || userRole === 'ADMIN') {
-          router.replace('/(tabs)/management');
+          router.replace('/management');
           return;
         } else if (userRole === 'ATTENDEE') {
-          router.replace('/(tabs)/attendee');
+          router.replace('/attendee');
           return;
         }
 
-        const weddingData = await getWeddingDetails(user.id);
+        const [weddingData, premiumServices] = await Promise.all([
+          getWeddingDetails(currentUserId),
+          getFeaturedServices()
+        ]);
         setWedding(weddingData);
+        setFeaturedServices(premiumServices || []);
 
         if (weddingData?.weddingDate) {
           const today = new Date();
@@ -66,17 +88,36 @@ export default function HomeScreen() {
         }
       } catch (error) {
         console.error("Error loading home data:", error);
+      } finally {
+        setLoading(false);
       }
     }
   };
 
   useEffect(() => {
-    if (isLoaded && !user) {
-      router.replace('/sign-in');
-    } else if (isLoaded && user) {
+    const checkSession = async () => {
+      if (isLoaded) {
+        if (user) {
+          loadData();
+        } else {
+          const storedUser = await AsyncStorage.getItem('user');
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            setLocalUser(parsedUser);
+          } else {
+            router.replace('/sign-in');
+          }
+        }
+      }
+    };
+    checkSession();
+  }, [isLoaded, user]);
+
+  useEffect(() => {
+    if (localUser) {
       loadData();
     }
-  }, [isLoaded, user]);
+  }, [localUser]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -84,225 +125,236 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, [user]);
 
-  if (!isLoaded || !user) return null;
+  const scrollY = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
+
+  const heroStyle = useAnimatedStyle(() => {
+    const scale = interpolate(scrollY.value, [-100, 0], [1.2, 1], Extrapolate.CLAMP);
+    const translateY = interpolate(scrollY.value, [0, HERO_HEIGHT], [0, -HERO_HEIGHT / 2], Extrapolate.CLAMP);
+    return {
+      transform: [{ scale }, { translateY }],
+    };
+  });
+
+  if (!isLoaded || loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color={Colors.light.gold} />
+      </View>
+    );
+  }
+
+  const currentUser = user || localUser;
+  if (!currentUser) return null;
+
+  if (role === 'PROTOCOL') {
+    return <ProtocolDashboard userId={localUser?.id?.toString() || user?.id || ''} />;
+  }
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#fdf6f0', '#fff9f3', '#fef8f1']}
-        style={styles.background}
-      />
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.light.gold} />}
-      >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>
-              {role === 'VENDOR' ? `Vendor Portal` : (wedding ? "My Wedding" : `Hello, ${user.firstName}!`)}
-            </Text>
-            <Text style={styles.subtitle}>
-              {role === 'VENDOR' ? `Manage your business` : (wedding ? "Your special day details" : "Welcome to your wedding dashboard")}
-            </Text>
-          </View>
-          {role === 'COUPLE' && wedding && (
-            <View style={styles.headerButtons}>
-              <TouchableOpacity style={styles.headerButton} onPress={() => router.push('/wedding-form')}>
-                <IconSymbol name="pencil" size={16} color={Colors.light.text} />
-                <Text style={styles.headerButtonText}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.headerButton, styles.deleteButton]}>
-                <IconSymbol name="trash" size={16} color="#ef4444" />
-                <Text style={[styles.headerButtonText, { color: '#ef4444' }]}>Delete</Text>
-              </TouchableOpacity>
+      {role === 'COUPLE' && (
+        <Animated.View style={[styles.heroContainer, heroStyle]}>
+          <Image
+            source={{ uri: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2069' }}
+            style={styles.heroImage}
+          />
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.8)']}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.heroOverlayContent}>
+            <View style={styles.heroTopRow}>
+              <Text style={styles.heroPreTitle}>ESTABLISHED MMXXV</Text>
+              <BlurView intensity={20} tint="light" style={styles.heroBadge}>
+                <Text style={styles.heroBadgeText}>DASHBOARD</Text>
+              </BlurView>
             </View>
-          )}
-        </View>
-
-        {role === 'VENDOR' && stats ? (
-          <View style={styles.vendorStats}>
-            <LinearGradient
-              colors={[Colors.light.gold, '#b8962e']}
-              style={styles.packageCard}
-            >
-              <View style={styles.packageHeader}>
-                <IconSymbol name="star.fill" size={24} color="#fff" />
-                <Text style={styles.packageTitle}>{stats.package} Plan</Text>
-              </View>
-              <TouchableOpacity style={styles.upgradeBtn} onPress={() => router.push('/vendor/packages')}>
-                <Text style={styles.upgradeBtnText}>Upgrade Plan</Text>
-              </TouchableOpacity>
-            </LinearGradient>
-
-            <View style={styles.statsGrid}>
-              <View style={styles.statBox}>
-                <Text style={styles.statNum}>{stats.services}</Text>
-                <Text style={styles.statLabel}>Services</Text>
-              </View>
-              <View style={[styles.statBox, stats.pendingBookings > 0 && styles.activeStatBox]}>
-                <Text style={[styles.statNum, stats.pendingBookings > 0 && { color: '#fff' }]}>{stats.pendingBookings}</Text>
-                <Text style={[styles.statLabel, stats.pendingBookings > 0 && { color: '#fff' }]}>Pending Requests</Text>
-              </View>
-            </View>
-          </View>
-        ) : (
-          wedding ? (
-            <View style={styles.card}>
-              <Text style={styles.weddingTitle}>
-                {user.firstName} & {wedding.partnersName || "Partner"}
+            <View style={styles.heroMainContent}>
+              <Text style={styles.heroTitle}>The Wedding Journey</Text>
+              <Text style={styles.heroSubtitle}>
+                {currentUser?.firstName || 'Our'} & {wedding?.partnersName || 'Love'}
               </Text>
-
-              {daysLeft !== null && (
-                <View style={styles.countdownWrapper}>
-                  <LinearGradient
-                    colors={[Colors.light.gold, '#b8962e']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.countdownGradient}
-                  >
-                    <Text style={styles.countdownTitle}>Countdown to Your Big Day</Text>
-                    <View style={styles.countdownGrid}>
-                      <View style={styles.countdownBox}>
-                        <Text style={styles.countdownNum}>{daysLeft.days}</Text>
-                        <Text style={styles.countdownUnit}>Days</Text>
-                      </View>
-                      <View style={styles.countdownBox}>
-                        <Text style={styles.countdownNum}>{daysLeft.hours}</Text>
-                        <Text style={styles.countdownUnit}>Hours</Text>
-                      </View>
-                      <View style={styles.countdownBox}>
-                        <Text style={styles.countdownNum}>{daysLeft.minutes}</Text>
-                        <Text style={styles.countdownUnit}>Minutes</Text>
-                      </View>
-                      <View style={styles.countdownBox}>
-                        <Text style={styles.countdownNum}>0</Text>
-                        <Text style={styles.countdownUnit}>Seconds</Text>
-                      </View>
-                    </View>
-                  </LinearGradient>
+              {daysLeft && (
+                <View style={styles.editorialCountdown}>
+                  <Text style={styles.countdownValue}>{daysLeft.days}</Text>
+                  <Text style={styles.countdownLabel}>DAYS UNTIL FOREVER</Text>
                 </View>
               )}
-
-              <Text style={styles.dateLabel}>Wedding is on</Text>
-              <Text style={styles.date}>
-                {wedding.weddingDate ? new Date(wedding.weddingDate).toLocaleDateString(undefined, {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                }) : "Date not set"}
-              </Text>
             </View>
-          ) : (
-            <View style={styles.card}>
-              <Text style={styles.infoText}>No wedding details found.</Text>
-              <Text style={styles.infoText}>Please set up your wedding on the website first.</Text>
+          </View>
+        </Animated.View>
+      )}
+
+      <Animated.ScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        contentContainerStyle={[styles.scrollContent, role === 'COUPLE' && { paddingTop: HERO_HEIGHT - 100 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.light.gold} />}
+      >
+        {role === 'COUPLE' ? (
+          <View style={styles.editorialBody}>
+            <LinearGradient colors={['rgba(255,255,255,0)', '#fff']} style={styles.bodyFade} />
+
+            <View style={styles.editorialSection}>
+              <View style={styles.sectionHeaderRow}>
+                <View>
+                  <Text style={styles.sectionPreTitle}>CURATED SELECTION</Text>
+                  <Text style={styles.sectionTitleLarge}>Premium Partners</Text>
+                </View>
+                <TouchableOpacity onPress={() => router.push('/services')}>
+                  <Text style={styles.seeAllText}>VIEW ALL</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.adsScroll}>
+                {featuredServices.map((service, index) => (
+                  <Animated.View key={service.id} entering={FadeInUp.delay(index * 100)}>
+                    <TouchableOpacity
+                      style={styles.editorialAdCard}
+                      onPress={() => router.push({ pathname: '/explore', params: { category: service.category } })}
+                    >
+                      <Image source={{ uri: service.imageUrl }} style={styles.adImage} />
+                      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.7)']} style={StyleSheet.absoluteFill} />
+                      <View style={styles.adContentEditorial}>
+                        <Text style={styles.adCategoryEditorial}>{service.category}</Text>
+                        <Text style={styles.adNameEditorial}>{service.serviceName}</Text>
+                        <View style={styles.adFooterEditorial}>
+                          <Text style={styles.adDetailEditorial}>{service.location || 'Addis Ababa'}</Text>
+                          <IconSymbol name="arrow.right" size={14} color="#fff" />
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  </Animated.View>
+                ))}
+              </ScrollView>
             </View>
-          )
-        )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsGrid}>
-            {role === 'VENDOR' ? (
-              <>
-                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/vendor')}>
-                  <LinearGradient
-                    colors={['#fdf6f0', '#fff']}
-                    style={styles.actionIconGradient}
-                  >
-                    <IconSymbol name="briefcase.fill" size={24} color={Colors.light.gold} />
-                  </LinearGradient>
-                  <Text style={styles.actionText}>My Services</Text>
-                </TouchableOpacity>
+            <View style={styles.editorialSection}>
+              <Text style={styles.sectionPreTitle}>ESSENTIAL TOOLS</Text>
+              <Text style={styles.sectionTitleLarge}>Quick Actions</Text>
 
-                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/bookings')}>
-                  <LinearGradient
-                    colors={['#fdf6f0', '#fff']}
-                    style={styles.actionIconGradient}
-                  >
-                    <IconSymbol name="calendar.badge.clock" size={24} color={Colors.light.gold} />
-                  </LinearGradient>
-                  <Text style={styles.actionText}>Bookings</Text>
-                </TouchableOpacity>
+              <View style={styles.editorialMasonry}>
+                <View style={styles.masonryCol}>
+                  <TouchableOpacity style={[styles.masonryCard, { height: 220 }]} onPress={() => router.push('/wedding-form')}>
+                    <BlurView intensity={10} tint="light" style={styles.masonryGlass}>
+                      <IconSymbol name="pencil" size={28} color={Colors.light.gold} />
+                      <Text style={styles.masonryTitle}>Edit Journey</Text>
+                      <Text style={styles.masonryDesc}>Update wedding details</Text>
+                    </BlurView>
+                  </TouchableOpacity>
 
-                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/vendor/packages')}>
-                  <LinearGradient
-                    colors={['#fdf6f0', '#fff']}
-                    style={styles.actionIconGradient}
-                  >
-                    <IconSymbol name="star.fill" size={24} color={Colors.light.gold} />
-                  </LinearGradient>
-                  <Text style={styles.actionText}>Packages</Text>
-                </TouchableOpacity>
+                  <TouchableOpacity style={[styles.masonryCard, { height: 160 }]} onPress={() => router.push('/gallery')}>
+                    <LinearGradient colors={['#F9F9FB', '#FFF']} style={styles.masonrySolid}>
+                      <IconSymbol name="photo" size={24} color={Colors.light.text} />
+                      <Text style={[styles.masonryTitle, { color: Colors.light.text }]}>Gallery</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
 
-                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/profile')}>
-                  <LinearGradient
-                    colors={['#fdf6f0', '#fff']}
-                    style={styles.actionIconGradient}
-                  >
-                    <IconSymbol name="person.circle.fill" size={24} color={Colors.light.gold} />
-                  </LinearGradient>
-                  <Text style={styles.actionText}>Profile</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/wedding-form')}>
-                  <LinearGradient
-                    colors={['#fdf6f0', '#fff']}
-                    style={styles.actionIconGradient}
-                  >
-                    <IconSymbol name="pencil" size={24} color={Colors.light.gold} />
-                  </LinearGradient>
-                  <Text style={styles.actionText}>Edit Wedding</Text>
-                </TouchableOpacity>
+                <View style={styles.masonryCol}>
+                  <TouchableOpacity style={[styles.masonryCard, { height: 160 }]} onPress={() => router.push('/wedding-card')}>
+                    <LinearGradient colors={[Colors.light.gold, '#b8962e']} style={styles.masonryGold}>
+                      <IconSymbol name="envelope" size={24} color="#fff" />
+                      <Text style={[styles.masonryTitle, { color: '#fff' }]}>Digital Card</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
 
-                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/wedding-card')}>
-                  <LinearGradient
-                    colors={['#fdf6f0', '#fff']}
-                    style={styles.actionIconGradient}
-                  >
-                    <IconSymbol name="envelope" size={24} color={Colors.light.gold} />
-                  </LinearGradient>
-                  <Text style={styles.actionText}>Digital Card</Text>
-                </TouchableOpacity>
+                  <TouchableOpacity style={[styles.masonryCard, { height: 220 }]} onPress={() => router.push('/guests')}>
+                    <BlurView intensity={60} tint="light" style={styles.masonryGlass}>
+                      <IconSymbol name="person.2.fill" size={28} color={Colors.light.gold} />
+                      <Text style={styles.masonryTitle}>Guest List</Text>
+                      <Text style={styles.masonryDesc}>Manage invitations</Text>
+                    </BlurView>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
 
-                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/gallery')}>
-                  <LinearGradient
-                    colors={['#fdf6f0', '#fff']}
-                    style={styles.actionIconGradient}
-                  >
-                    <IconSymbol name="photo" size={24} color={Colors.light.gold} />
-                  </LinearGradient>
-                  <Text style={styles.actionText}>Gallery</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/guests')}>
-                  <LinearGradient
-                    colors={['#fdf6f0', '#fff']}
-                    style={styles.actionIconGradient}
-                  >
-                    <IconSymbol name="person.2.fill" size={24} color={Colors.light.gold} />
-                  </LinearGradient>
-                  <Text style={styles.actionText}>Guests</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/meeting-request')}>
-                  <LinearGradient
-                    colors={['#fdf6f0', '#fff']}
-                    style={styles.actionIconGradient}
-                  >
-                    <IconSymbol name="calendar.badge.plus" size={24} color={Colors.light.gold} />
-                  </LinearGradient>
-                  <Text style={styles.actionText}>Request Meeting</Text>
-                </TouchableOpacity>
-              </>
+            {wedding?.weddingDate && (
+              <View style={styles.editorialSection}>
+                <BlurView intensity={80} style={styles.calendarCard}>
+                  <View style={styles.calendarHeader}>
+                    <Text style={styles.calendarMonth}>{new Date(wedding.weddingDate).toLocaleDateString(undefined, { month: 'long' }).toUpperCase()}</Text>
+                    <Text style={styles.calendarYear}>{new Date(wedding.weddingDate).getFullYear()}</Text>
+                  </View>
+                  <View style={styles.calendarBody}>
+                    <Text style={styles.calendarDayNum}>{new Date(wedding.weddingDate).getDate()}</Text>
+                    <Text style={styles.calendarDayText}>{new Date(wedding.weddingDate).toLocaleDateString(undefined, { weekday: 'long' })}</Text>
+                  </View>
+                  <View style={styles.calendarFooter}>
+                    <IconSymbol name="mappin.and.ellipse" size={14} color={Colors.light.gold} />
+                    <Text style={styles.calendarLocation}>{wedding.location || 'Location Pending'}</Text>
+                  </View>
+                </BlurView>
+              </View>
             )}
           </View>
-        </View>
-      </ScrollView>
+        ) : (
+          <>
+            <View style={styles.header}>
+              <View>
+                <Text style={styles.greeting}>
+                  {role === 'VENDOR' ? `Vendor Portal` : `Hello, ${currentUser.firstName || currentUser.username || 'Friend'}`}
+                </Text>
+                <Text style={styles.subtitle}>
+                  {role === 'VENDOR' ? `Manage your business` : "Welcome to your wedding dashboard"}
+                </Text>
+              </View>
+            </View>
+
+            {role === 'VENDOR' && stats && (
+              <View style={styles.vendorStats}>
+                <LinearGradient colors={[Colors.light.gold, '#b8962e']} style={styles.packageCard}>
+                  <View style={styles.packageHeader}>
+                    <IconSymbol name="star.fill" size={24} color="#fff" />
+                    <Text style={styles.packageTitle}>{stats.package} Plan</Text>
+                  </View>
+                  <TouchableOpacity style={styles.upgradeBtn} onPress={() => router.push('/vendor/packages')}>
+                    <Text style={styles.upgradeBtnText}>Upgrade Plan</Text>
+                  </TouchableOpacity>
+                </LinearGradient>
+
+                <View style={styles.statsGrid}>
+                  <View style={styles.statBox}>
+                    <Text style={styles.statNum}>{stats.services}</Text>
+                    <Text style={styles.statLabel}>Services</Text>
+                  </View>
+                  <View style={[styles.statBox, stats.pendingBookings > 0 && styles.activeStatBox]}>
+                    <Text style={[styles.statNum, stats.pendingBookings > 0 && { color: '#fff' }]}>{stats.pendingBookings}</Text>
+                    <Text style={[styles.statLabel, stats.pendingBookings > 0 && { color: '#fff' }]}>Pending Requests</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Quick Actions</Text>
+              <View style={styles.actionsGrid}>
+                {role === 'VENDOR' ? (
+                  <>
+                    <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/vendor')}>
+                      <LinearGradient colors={['#fdf6f0', '#fff']} style={styles.actionIconGradient}>
+                        <IconSymbol name="briefcase.fill" size={24} color={Colors.light.gold} />
+                      </LinearGradient>
+                      <Text style={styles.actionText}>My Services</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/bookings')}>
+                      <LinearGradient colors={['#fdf6f0', '#fff']} style={styles.actionIconGradient}>
+                        <IconSymbol name="calendar.badge.clock" size={24} color={Colors.light.gold} />
+                      </LinearGradient>
+                      <Text style={styles.actionText}>Bookings</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : null}
+              </View>
+            </View>
+          </>
+        )}
+      </Animated.ScrollView>
     </View>
   );
 }
@@ -310,16 +362,272 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff',
   },
-  background: {
+  heroContainer: {
+    height: HERO_HEIGHT,
+    width: width,
     position: 'absolute',
-    left: 0,
-    right: 0,
     top: 0,
-    bottom: 0,
+    zIndex: 0,
+    overflow: 'hidden',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  heroOverlayContent: {
+    ...StyleSheet.absoluteFillObject,
+    padding: 30,
+    paddingTop: 60,
+    justifyContent: 'space-between',
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  heroPreTitle: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 10,
+    letterSpacing: 4,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  heroBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  heroBadgeText: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: '#fff',
+  },
+  heroMainContent: {
+    marginBottom: 40,
+  },
+  heroTitle: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 42,
+    color: '#fff',
+    marginBottom: 5,
+  },
+  heroSubtitle: {
+    fontFamily: Fonts.Cormorant.Regular,
+    fontSize: 24,
+    color: Colors.light.gold,
+    fontStyle: 'italic',
+    marginBottom: 20,
+  },
+  editorialCountdown: {
+    marginTop: 10,
+  },
+  countdownValue: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 64,
+    color: 'rgba(255,255,255,0.15)',
+    position: 'absolute',
+    top: -40,
+    left: -10,
+  },
+  countdownLabel: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 11,
+    letterSpacing: 5,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 10,
+  },
+  editorialBody: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    marginTop: -40,
+    paddingTop: 30,
+  },
+  bodyFade: {
+    height: 100,
+    width: '100%',
+    position: 'absolute',
+    top: -100,
+  },
+  editorialSection: {
+    paddingHorizontal: 25,
+    marginBottom: 45,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: 20,
+  },
+  sectionPreTitle: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 10,
+    letterSpacing: 3,
+    color: Colors.light.gold,
+    marginBottom: 8,
+  },
+  sectionTitleLarge: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 28,
+    color: Colors.light.text,
+  },
+  seeAllText: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 10,
+    letterSpacing: 2,
+    color: Colors.light.textSecondary,
+    marginBottom: 5,
+  },
+  adsScroll: {
+    paddingRight: 25,
+    paddingLeft: 25,
+  },
+  editorialAdCard: {
+    width: 240,
+    height: 320,
+    marginRight: 20,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#f8f8f8',
+  },
+  adImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  adContentEditorial: {
+    ...StyleSheet.absoluteFillObject,
+    padding: 20,
+    justifyContent: 'flex-end',
+  },
+  adCategoryEditorial: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 10,
+    letterSpacing: 2,
+    color: Colors.light.gold,
+    marginBottom: 5,
+  },
+  adNameEditorial: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 20,
+    color: '#fff',
+    marginBottom: 10,
+  },
+  adFooterEditorial: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.2)',
+  },
+  adDetailEditorial: {
+    fontFamily: Fonts.Cormorant.Regular,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  editorialMasonry: {
+    flexDirection: 'row',
+    gap: 15,
+  },
+  masonryCol: {
+    flex: 1,
+    gap: 15,
+  },
+  masonryCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  masonryGlass: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.1)',
+  },
+  masonrySolid: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'flex-end',
+  },
+  masonryGold: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'flex-end',
+  },
+  masonryTitle: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 18,
+    marginTop: 12,
+    color: Colors.light.gold,
+  },
+  masonryDesc: {
+    fontFamily: Fonts.Cormorant.Regular,
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    marginTop: 4,
+  },
+  calendarCard: {
+    padding: 30,
+    borderRadius: 30,
+    backgroundColor: 'rgba(212, 175, 55, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.1)',
+    alignItems: 'center',
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 15,
+  },
+  calendarMonth: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 14,
+    letterSpacing: 4,
+    color: Colors.light.text,
+  },
+  calendarYear: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 14,
+    color: Colors.light.gold,
+  },
+  calendarBody: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  calendarDayNum: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 72,
+    color: Colors.light.text,
+    lineHeight: 80,
+  },
+  calendarDayText: {
+    fontFamily: Fonts.Cormorant.Regular,
+    fontSize: 18,
+    color: Colors.light.gold,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  calendarFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  calendarLocation: {
+    fontFamily: Fonts.Cormorant.Regular,
+    fontSize: 14,
+    color: Colors.light.textSecondary,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 40,
   },
   header: {
     padding: 24,
@@ -327,31 +635,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  headerButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  headerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
-  },
-  deleteButton: {
-    backgroundColor: '#fff1f2',
-    borderColor: '#fee2e2',
-  },
-  headerButtonText: {
-    fontFamily: Fonts.Cormorant.Regular,
-    fontSize: 14,
-    color: Colors.light.text,
-    fontWeight: '600',
   },
   greeting: {
     fontFamily: Fonts.Playfair.Bold,
@@ -363,90 +646,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: Colors.light.textSecondary,
     marginTop: 4,
-  },
-  card: {
-    margin: 20,
-    padding: 24,
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    alignItems: 'center',
-    shadowColor: Colors.light.gold,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.1)',
-  },
-  weddingTitle: {
-    fontFamily: Fonts.Playfair.Bold,
-    fontSize: 28,
-    color: Colors.light.gold,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  countdownWrapper: {
-    width: '100%',
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginVertical: 10,
-  },
-  countdownGradient: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  countdownTitle: {
-    fontFamily: Fonts.Playfair.Bold,
-    fontSize: 20,
-    color: '#fff',
-    marginBottom: 20,
-  },
-  countdownGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    gap: 8,
-  },
-  countdownBox: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    padding: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  countdownNum: {
-    fontFamily: Fonts.Playfair.Bold,
-    fontSize: 24,
-    color: '#fff',
-  },
-  countdownUnit: {
-    fontFamily: Fonts.Cormorant.Regular,
-    fontSize: 10,
-    color: '#fff',
-    textTransform: 'uppercase',
-    marginTop: 4,
-  },
-  dateLabel: {
-    fontFamily: Fonts.Cormorant.Regular,
-    fontStyle: 'italic',
-    fontSize: 16,
-    color: Colors.light.textSecondary,
-    marginTop: 20,
-  },
-  date: {
-    fontFamily: Fonts.Cormorant.Regular,
-    fontSize: 18,
-    color: Colors.light.textSecondary,
-    marginTop: 8,
-  },
-  infoText: {
-    fontFamily: Fonts.Cormorant.Regular,
-    fontSize: 18,
-    color: Colors.light.textSecondary,
-    textAlign: 'center',
-    marginBottom: 8,
   },
   section: {
     padding: 24,
@@ -495,7 +694,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   vendorStats: {
-    padding: 20,
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   packageCard: {
     borderRadius: 24,
@@ -567,5 +767,54 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     marginTop: 4,
     textAlign: 'center',
+  },
+  celebrationCard: {
+    margin: 20,
+    borderRadius: 24,
+    overflow: 'hidden',
+    elevation: 8,
+    shadowColor: Colors.light.gold,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Colors.light.gold,
+  },
+  celebrationContent: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  congratsIcon: {
+    marginBottom: 16,
+  },
+  congratsTitle: {
+    fontFamily: Fonts.Playfair.Bold,
+    fontSize: 28,
+    color: Colors.light.gold,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  congratsText: {
+    fontFamily: Fonts.Cormorant.Regular,
+    fontSize: 18,
+    color: Colors.light.text,
+    textAlign: 'center',
+    lineHeight: 26,
+    marginBottom: 24,
+  },
+  feedbackBtn: {
+    width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  feedbackGradient: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  feedbackBtnText: {
+    color: '#fff',
+    fontFamily: Fonts.Cormorant.Bold,
+    fontSize: 18,
   },
 });

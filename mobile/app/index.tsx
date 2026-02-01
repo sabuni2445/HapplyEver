@@ -1,6 +1,7 @@
-import { StyleSheet, View, Text, TouchableOpacity, Animated, Dimensions, Platform } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Animated, Dimensions, Platform, Image, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, Fonts } from '@/constants/theme';
 import { useRouter } from 'expo-router';
@@ -39,19 +40,39 @@ export default function SplashScreen() {
     const handleRedirect = async (userId: string) => {
         try {
             const dbUser = await getUserFromDatabase(userId);
-            const role = dbUser?.selectedRole || 'USER';
 
-            if (role === 'VENDOR') {
+            // If user doesn't exist in DB at all, they MUST onboard
+            if (!dbUser) {
+                router.replace('/onboarding');
+                return;
+            }
+
+            const role = dbUser?.selectedRole || dbUser?.role;
+
+            // If they exist but haven't picked a role (or default COUPLE but no wedding etc), 
+            // we check if we should still send them to onboarding.
+            // But usually, role check is enough.
+            if (!role) {
+                router.replace('/onboarding');
+                return;
+            }
+
+            if (role === 'VENDOR' || role === 'vendor') {
                 router.replace('/(tabs)/vendor');
-            } else if (role === 'PROTOCOL') {
+            } else if (role === 'PROTOCOL' || role === 'protocol') {
                 router.replace('/(tabs)/protocol');
-            } else if (role === 'MANAGER') {
+            } else if (role === 'MANAGER' || role === 'manager') {
                 router.replace('/(tabs)/management');
+            } else if (role === 'ADMIN' || role === 'admin') {
+                // For admin if they use mobile, maybe just tabs or a specific view
+                router.replace('/(tabs)');
             } else {
                 router.replace('/(tabs)');
             }
         } catch (error) {
-            router.replace('/(tabs)');
+            console.error("Redirect error:", error);
+            // On error, let them try to onboard or go to tabs
+            router.replace('/onboarding');
         }
     };
 
@@ -191,13 +212,16 @@ export default function SplashScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient
-                colors={['#fdf6f0', '#fff9f3', '#fef8f1', '#fffaf5', '#fef9f3']}
-                style={styles.background}
-            />
-
-            {/* Floating Hearts */}
-            {hearts}
+            <View style={StyleSheet.absoluteFill}>
+                <Image
+                    source={{ uri: 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070' }}
+                    style={styles.heroImage}
+                />
+                <LinearGradient
+                    colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.8)']}
+                    style={StyleSheet.absoluteFill}
+                />
+            </View>
 
             <Animated.View
                 style={[
@@ -208,159 +232,69 @@ export default function SplashScreen() {
                     }
                 ]}
             >
-                <Animated.View
-                    style={[
-                        styles.logoContainer,
-                        { transform: [{ scale: scaleAnim }] }
-                    ]}
-                >
-                    <IconSymbol name="sparkles" size={48} color="#fff" />
-                </Animated.View>
-
-                <Text style={styles.title}>ElegantEvents</Text>
-                <Text style={styles.subtitle}>WHERE DREAMS BECOME REALITY</Text>
-
-                <View style={styles.messageContainer}>
-                    <Text style={styles.welcomeTitle}>Welcome to Your Wedding Journey</Text>
-                    <Text style={styles.welcomeText}>
-                        Plan your perfect day with our comprehensive wedding management platform.
-                        From guest lists to vendor coordination, we've got you covered.
-                    </Text>
+                <View style={styles.editorialHeader}>
+                    <Text style={styles.preTitle}>ESTABLISHED MMXXV</Text>
+                    <View style={styles.titleWrapper}>
+                        <Text style={styles.titleMain}>Elegant</Text>
+                        <View style={styles.ampersandBox}>
+                            <Text style={styles.ampersand}>&</Text>
+                        </View>
+                        <Text style={styles.titleSub}>Events</Text>
+                    </View>
+                    <View style={styles.luxuryDivider} />
+                    <Text style={styles.tagline}>FOR EXTRAORDINARY LOVE STORIES</Text>
                 </View>
 
-                {!isSignedIn && (
-                    <View style={styles.buttonContainer}>
-                        <TouchableOpacity style={styles.button} onPress={handleLogin}>
-                            <View style={styles.iconContainer}>
-                                <Text style={styles.googleIcon}>G</Text>
-                            </View>
-                            <Text style={styles.buttonText}>Continue with Google</Text>
-                            <IconSymbol name="arrow.right" size={20} color="#fff" />
-                        </TouchableOpacity>
+                <View style={styles.bottomSection}>
+                    {!isSignedIn ? (
+                        <View style={styles.buttonContainer}>
+                            <BlurView intensity={20} tint="light" style={styles.glassButtonWrapper}>
+                                <TouchableOpacity style={styles.premiumButton} onPress={handleLogin}>
+                                    <View style={styles.iconCircle}>
+                                        <Text style={styles.gText}>G</Text>
+                                    </View>
+                                    <Text style={styles.premiumButtonText}>Continue with Google</Text>
+                                </TouchableOpacity>
+                            </BlurView>
 
-                        <TouchableOpacity style={styles.secondaryButton} onPress={handleEmailLogin}>
-                            <Text style={styles.secondaryButtonText}>Continue with Email</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
+                            <TouchableOpacity style={styles.emailButton} onPress={handleEmailLogin}>
+                                <Text style={styles.emailButtonText}>Sign in with Email</Text>
+                                <View style={styles.emailUnderline} />
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <ActivityIndicator color={Colors.light.gold} size="large" />
+                    )}
+                </View>
             </Animated.View>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    background: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-    },
-    content: {
-        alignItems: 'center',
-        padding: 20,
-        width: '100%',
-        maxWidth: 400,
-        zIndex: 10,
-    },
-    logoContainer: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        backgroundColor: Colors.light.gold,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 24,
-        shadowColor: Colors.light.gold,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.4,
-        shadowRadius: 20,
-        elevation: 10,
-    },
-    title: {
-        fontFamily: Fonts.Playfair.Bold,
-        fontSize: 42,
-        color: Colors.light.text,
-        marginBottom: 8,
-        textAlign: 'center',
-    },
-    subtitle: {
-        fontFamily: Fonts.Cormorant.Regular,
-        fontSize: 14,
-        color: Colors.light.textSecondary,
-        letterSpacing: 2,
-        marginBottom: 40,
-        textAlign: 'center',
-    },
-    messageContainer: {
-        marginBottom: 40,
-        alignItems: 'center',
-    },
-    welcomeTitle: {
-        fontFamily: Fonts.Playfair.Bold,
-        fontSize: 24,
-        color: Colors.light.text,
-        marginBottom: 16,
-        textAlign: 'center',
-    },
-    welcomeText: {
-        fontFamily: Fonts.Cormorant.Regular,
-        fontSize: 18,
-        color: Colors.light.textSecondary,
-        textAlign: 'center',
-        lineHeight: 26,
-    },
-    buttonContainer: {
-        width: '100%',
-        gap: 16,
-    },
-    button: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: Colors.light.gold,
-        paddingVertical: 16,
-        paddingHorizontal: 32,
-        borderRadius: 50,
-        shadowColor: Colors.light.gold,
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-        elevation: 5,
-        gap: 10,
-    },
-    iconContainer: {
-        width: 24,
-        height: 24,
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    googleIcon: {
-        color: Colors.light.gold,
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    buttonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '600',
-        fontFamily: Fonts.Cormorant.Regular,
-    },
-    secondaryButton: {
-        alignItems: 'center',
-        paddingVertical: 12,
-    },
-    secondaryButtonText: {
-        color: Colors.light.textSecondary,
-        fontSize: 16,
-        fontFamily: Fonts.Cormorant.Regular,
-        textDecorationLine: 'underline',
-    },
+    container: { flex: 1, backgroundColor: '#1a1a1a' },
+    heroImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+    content: { flex: 1, justifyContent: 'space-between', paddingHorizontal: 30, paddingTop: 100, paddingBottom: 60 },
+
+    editorialHeader: { alignItems: 'center' },
+    preTitle: { fontFamily: Fonts.Playfair.Bold, fontSize: 10, letterSpacing: 4, color: 'rgba(255,255,255,0.6)', marginBottom: 20 },
+    titleWrapper: { alignItems: 'center' },
+    titleMain: { fontFamily: Fonts.Playfair.Bold, fontSize: 52, color: '#fff', letterSpacing: 2 },
+    titleSub: { fontFamily: Fonts.Playfair.Bold, fontSize: 52, color: '#fff', letterSpacing: 2, marginTop: -10 },
+    ampersandBox: { paddingVertical: 5 },
+    ampersand: { fontFamily: Fonts.Cormorant.Regular, fontSize: 32, color: Colors.light.gold, fontStyle: 'italic' },
+    luxuryDivider: { width: 40, height: 1, backgroundColor: Colors.light.gold, marginVertical: 30 },
+    tagline: { fontFamily: Fonts.Cormorant.Regular, fontSize: 14, letterSpacing: 5, color: 'rgba(255,255,255,0.7)', textAlign: 'center' },
+
+    bottomSection: { width: '100%', alignItems: 'center' },
+    buttonContainer: { width: '100%', gap: 20 },
+    glassButtonWrapper: { borderRadius: 100, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+    premiumButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: 18, paddingHorizontal: 24, justifyContent: 'center', gap: 15 },
+    iconCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+    gText: { color: '#000', fontSize: 14, fontWeight: '700' },
+    premiumButtonText: { color: '#fff', fontSize: 15, fontFamily: Fonts.Playfair.Bold, letterSpacing: 2 },
+
+    emailButton: { paddingVertical: 10, alignItems: 'center' },
+    emailButtonText: { color: 'rgba(255,255,255,0.6)', fontSize: 12, fontFamily: Fonts.Playfair.Bold, letterSpacing: 3, textTransform: 'uppercase' },
+    emailUnderline: { width: 20, height: 1, backgroundColor: Colors.light.gold, marginTop: 8 },
 });

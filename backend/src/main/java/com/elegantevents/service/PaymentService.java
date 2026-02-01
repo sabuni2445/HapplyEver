@@ -18,6 +18,11 @@ public class PaymentService {
     public PaymentService(PaymentRepository paymentRepository) {
         this.paymentRepository = paymentRepository;
     }
+
+    @Transactional(readOnly = true)
+    public List<Payment> getAllPayments() {
+        return paymentRepository.findAll();
+    }
     
     @Transactional
     public Payment createPayment(Long weddingId, String coupleClerkId, BigDecimal amount, 

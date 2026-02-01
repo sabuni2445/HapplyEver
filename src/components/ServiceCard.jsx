@@ -3,39 +3,44 @@ import "./ServiceCard.css";
 
 export default function ServiceCard({ service, onClick }) {
   return (
-    <div className="service-card" onClick={onClick}>
-      {service.imageUrl && (
-        <div className="service-card-image">
-          <img src={service.imageUrl} alt={service.serviceName} />
-          {service.status === "ACTIVE" && (
-            <span className="service-status-badge">Available</span>
-          )}
+    <div className="editorial-service-card" onClick={onClick}>
+      <div className="card-image-wrapper">
+        {service.imageUrl ? (
+          <img src={service.imageUrl} alt={service.serviceName} className="card-img" />
+        ) : (
+          <div className="card-img-placeholder"></div>
+        )}
+        <div className="card-image-overlay">
+          <span className="card-category-tag">{service.category}</span>
         </div>
-      )}
-      <div className="service-card-content">
-        <div className="service-card-header">
-          <h3>{service.serviceName}</h3>
+      </div>
+
+      <div className="card-info">
+        <div className="card-row">
+          <h3 className="card-name">{service.serviceName}</h3>
           {service.averageRating > 0 && (
-            <div className="service-rating">
-              <Star size={16} fill="#d4af37" color="#d4af37" />
+            <div className="card-rating">
+              <Star size={12} fill="#d4af37" color="#d4af37" />
               <span>{service.averageRating.toFixed(1)}</span>
-              <span className="rating-count">({service.ratingCount})</span>
             </div>
           )}
         </div>
-        {service.category && (
-          <p className="service-category">{service.category}</p>
-        )}
-        <p className="service-description">
-          {service.description?.substring(0, 100)}...
+
+        <p className="card-short-desc">
+          {service.description?.length > 85
+            ? `${service.description.substring(0, 85)}...`
+            : service.description}
         </p>
-        {service.price && (
-          <div className="service-price">
-            ${service.price.toFixed(2)}
-            {service.amount && <span> / {service.amount}</span>}
+
+        <div className="card-footer-editorial">
+          <p className="card-price-label">
+            From <span className="price-accent">ETB {service.price?.toLocaleString()}</span>
+          </p>
+          <div className="card-cta-link">
+            <span>Discover</span>
+            <div className="cta-underline"></div>
           </div>
-        )}
-        <button className="service-view-btn">View Details</button>
+        </div>
       </div>
     </div>
   );

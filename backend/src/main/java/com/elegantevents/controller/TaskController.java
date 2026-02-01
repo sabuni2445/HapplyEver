@@ -18,6 +18,11 @@ public class TaskController {
     public TaskController(TaskService taskService) {
         this.taskService = taskService;
     }
+    
+    @GetMapping("/test")
+    public ResponseEntity<String> test() {
+        return ResponseEntity.ok("Task Controller is working");
+    }
 
     @PostMapping("/create")
     public ResponseEntity<Task> createTask(@RequestBody Map<String, Object> request) {
@@ -35,24 +40,45 @@ public class TaskController {
             
             LocalDateTime dueDate = null;
             if (request.get("dueDate") != null) {
-                dueDate = LocalDateTime.parse(request.get("dueDate").toString());
+                String dueDateStr = request.get("dueDate").toString();
+                try {
+                    // Handle ISO-8601 strings commonly sent by frontend/mobile
+                    dueDate = java.time.OffsetDateTime.parse(dueDateStr).toLocalDateTime();
+                } catch (Exception e) {
+                    try {
+                        dueDate = LocalDateTime.parse(dueDateStr);
+                    } catch (Exception e2) {
+                        System.err.println("Failed to parse task due date: " + dueDateStr);
+                    }
+                }
             }
 
             Task task = taskService.createTask(weddingId, title, description, category, assignedRole, assignedProtocolId, dueDate);
             return ResponseEntity.ok(task);
         } catch (Exception e) {
+            e.printStackTrace(); // Added for better debugging
             return ResponseEntity.badRequest().build();
         }
     }
 
     @GetMapping("/wedding/{weddingId}")
     public ResponseEntity<List<Task>> getTasksByWedding(@PathVariable Long weddingId) {
-        return ResponseEntity.ok(taskService.getTasksByWedding(weddingId));
+        try {
+            return ResponseEntity.ok(taskService.getTasksByWedding(weddingId));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
     }
     
     @GetMapping("/protocol/{protocolId}")
     public ResponseEntity<List<Task>> getTasksByProtocol(@PathVariable Long protocolId) {
-        return ResponseEntity.ok(taskService.getTasksByProtocol(protocolId));
+        try {
+            return ResponseEntity.ok(taskService.getTasksByProtocol(protocolId));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
     }
     
     @PatchMapping("/{taskId}/accept")

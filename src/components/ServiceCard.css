@@ -1,138 +1,151 @@
-.service-card {
-  background: white;
-  border-radius: 12px;
+/* Premium Editorial Service Card Styles */
+.editorial-service-card {
+  background: #ffffff;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+  border: 1px solid #f0f0f0;
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.service-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+.editorial-service-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  border-color: #d4af37;
 }
 
-.service-card-image {
+.card-image-wrapper {
   position: relative;
+  height: 240px;
   width: 100%;
-  height: 200px;
   overflow: hidden;
 }
 
-.service-card-image img {
+.card-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 1.5s ease;
 }
 
-.service-status-badge {
+.editorial-service-card:hover .card-img {
+  transform: scale(1.1);
+}
+
+.card-image-overlay {
   position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  background: #d1fae5;
-  color: #065f46;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.4));
+  padding: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
 }
 
-.service-card-content {
+.card-category-tag {
+  background: rgba(255, 255, 255, 0.95);
+  color: #1a1a1a;
+  padding: 0.35rem 1rem;
+  font-family: "Playfair Display", serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15rem;
+}
+
+.card-info {
   padding: 1.5rem;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  flex: 1;
 }
 
-.service-card-header {
+.card-row {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
 }
 
-.service-card-header h3 {
+.card-name {
   font-family: "Playfair Display", serif;
-  font-size: 1.5rem;
-  color: #523c2b;
+  font-size: 1.4rem;
+  color: #1a1a1a;
   margin: 0;
-  flex: 1;
+  line-height: 1.2;
 }
 
-.service-rating {
+.card-rating {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.4rem;
   color: #d4af37;
+  font-family: "Playfair Display", serif;
+  font-size: 0.9rem;
   font-weight: 600;
-  font-size: 0.9rem;
 }
 
-.rating-count {
-  color: #6b7280;
-  font-weight: 400;
-}
-
-.service-category {
-  color: #7a5d4e;
-  font-size: 0.9rem;
-  margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.service-description {
-  color: #6b7280;
-  font-size: 0.95rem;
+.card-short-desc {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1rem;
+  color: #666;
   line-height: 1.5;
   margin: 0;
   flex: 1;
 }
 
-.service-price {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #d4af37;
-  margin-top: 0.5rem;
-}
-
-.service-price span {
-  font-size: 0.9rem;
-  color: #7a5d4e;
-  font-weight: 400;
-}
-
-.service-view-btn {
+.card-footer-editorial {
   margin-top: 1rem;
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #d4af37, #b89627);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.service-view-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+.card-price-label {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 0.9rem;
+  color: #999;
+  margin: 0;
 }
 
-@media (max-width: 768px) {
-  .service-card-header {
-    flex-direction: column;
-  }
+.price-accent {
+  color: #1a1a1a;
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 1rem;
 }
 
+.card-cta-link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
 
+.card-cta-link span {
+  font-family: "Playfair Display", serif;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1rem;
+  color: #d4af37;
+}
 
+.cta-underline {
+  width: 15px;
+  height: 1px;
+  background: #d4af37;
+  margin-top: 2px;
+  transition: width 0.3s ease;
+}
 
-
-
-
-
-
+.editorial-service-card:hover .cta-underline {
+  width: 30px;
+}

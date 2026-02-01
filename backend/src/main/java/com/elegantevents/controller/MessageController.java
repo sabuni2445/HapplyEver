@@ -19,14 +19,24 @@ public class MessageController {
     }
 
     @PostMapping("/send")
-    public ResponseEntity<Message> sendMessage(@RequestBody Map<String, String> payload) {
+    public ResponseEntity<Message> sendMessage(@RequestBody Map<String, Object> payload) {
         try {
-            String senderClerkId = payload.get("senderClerkId");
-            String receiverClerkId = payload.get("receiverClerkId");
-            String content = payload.get("content");
+            // Support both senderId/receiverId (numeric) and senderClerkId/receiverClerkId (string)
+            String senderClerkId = payload.get("senderClerkId") != null ? 
+                payload.get("senderClerkId").toString() : null;
+            String receiverClerkId = payload.get("receiverClerkId") != null ? 
+                payload.get("receiverClerkId").toString() : null;
+            String content = payload.get("content").toString();
+            
+            // If IDs are provided instead of clerkIds, we need to handle that
+            if (senderClerkId == null && payload.get("senderId") != null) {
+                // This is a numeric ID, need to convert - for now just return error
+                return ResponseEntity.badRequest().body(null);
+            }
             
             return ResponseEntity.ok(messageService.sendMessage(senderClerkId, receiverClerkId, content));
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.badRequest().body(null);
         }
     }
@@ -41,5 +51,15 @@ public class MessageController {
     @GetMapping("/inbox/{clerkId}")
     public ResponseEntity<List<Message>> getInbox(@PathVariable String clerkId) {
         return ResponseEntity.ok(messageService.getInbox(clerkId));
+    }
+    
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<Message>> getMessagesByUser(@PathVariable Long userId) {
+        try {
+            return ResponseEntity.ok(messageService.getMessagesByUserId(userId));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.ok(List.of());
+        }
     }
 }

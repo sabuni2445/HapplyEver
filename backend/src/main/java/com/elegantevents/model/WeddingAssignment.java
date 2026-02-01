@@ -39,6 +39,12 @@ public class WeddingAssignment {
     
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
+
+    @Column(name = "protocol_rating")
+    private Integer protocolRating;
+
+    @Column(name = "protocol_feedback", columnDefinition = "TEXT")
+    private String protocolFeedback;
     
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -25,6 +25,14 @@ export default function ServicesScreen() {
     const [wedding, setWedding] = useState<any>(null);
     const [payments, setPayments] = useState<any[]>([]);
 
+    // Booking Form State
+    const [bookingModalVisible, setBookingModalVisible] = useState(false);
+    const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0]);
+    const [bookingTime, setBookingTime] = useState('14:00');
+    const [bookingLocation, setBookingLocation] = useState('');
+    const [bookingNotes, setBookingNotes] = useState('');
+    const [isBooking, setIsBooking] = useState(false);
+
     const loadData = async () => {
         if (user) {
             try {
@@ -57,38 +65,35 @@ export default function ServicesScreen() {
         setRefreshing(false);
     }, [user]);
 
-    const handleBookService = async (service: any) => {
-        if (!user || !wedding) return;
+    const handleBookService = (service: any) => {
+        if (!user || !wedding) {
+            Alert.alert("Error", "Please complete your wedding profile first.");
+            return;
+        }
+        setSelectedService(service);
+        setBookingModalVisible(true);
+    };
 
-        const totalBooked = bookings.reduce((sum, b) => sum + (b.service?.price || 0), 0);
-        const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-        const budget = wedding.budget || 0;
-        const newTotal = totalBooked + service.price;
-        const remainingBudget = budget - newTotal;
+    const confirmBooking = async () => {
+        if (!user || !selectedService) return;
 
-        Alert.alert(
-            "Confirm Booking",
-            `Service: ${service.serviceName}\nPrice: ETB ${service.price.toLocaleString()}\n\nBudget Summary:\n- Total Budget: ETB ${budget.toLocaleString()}\n- Already Booked: ETB ${totalBooked.toLocaleString()}\n- Total Paid: ETB ${totalPaid.toLocaleString()}\n- Remaining Budget: ETB ${remainingBudget.toLocaleString()}\n\nDo you want to proceed with this booking?`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Confirm",
-                    onPress: async () => {
-                        try {
-                            await createBooking(user.id, {
-                                serviceId: service.id,
-                                weddingDate: new Date().toISOString(),
-                                notes: "Booked via mobile app"
-                            });
-                            Alert.alert("Success", "Booking request sent!");
-                            loadData();
-                        } catch (error) {
-                            Alert.alert("Error", "Failed to book service");
-                        }
-                    }
-                }
-            ]
-        );
+        setIsBooking(true);
+        try {
+            await createBooking(user.id, {
+                serviceId: selectedService.id,
+                eventDate: bookingDate,
+                eventTime: bookingTime,
+                location: bookingLocation,
+                specialRequests: bookingNotes || "Booked via mobile app"
+            });
+            setBookingModalVisible(false);
+            Alert.alert("Success", "Your booking inquiry has been gracefully delivered!");
+            loadData();
+        } catch (error) {
+            Alert.alert("Error", "Failed to book service. Please check your connection.");
+        } finally {
+            setIsBooking(false);
+        }
     };
 
     const openRatingModal = (booking: any) => {
@@ -169,13 +174,13 @@ export default function ServicesScreen() {
                         bookings.map((booking) => (
                             <View key={booking.id} style={styles.card}>
                                 <View style={styles.cardHeader}>
-                                    <Text style={styles.serviceName}>{booking.service?.serviceName || "Service"}</Text>
+                                    <Text style={styles.serviceName}>{booking.service?.serviceName || booking.serviceName || "Service"}</Text>
                                     <View style={[styles.badge, { backgroundColor: getStatusColor(booking.status) }]}>
                                         <Text style={styles.badgeText}>{booking.status}</Text>
                                     </View>
                                 </View>
-                                <Text style={styles.price}>ETB {booking.service?.price?.toLocaleString()}</Text>
-                                <Text style={styles.description}>{booking.service?.description}</Text>
+                                <Text style={styles.price}>ETB {(booking.service?.price || booking.servicePrice || 0).toLocaleString()}</Text>
+                                <Text style={styles.description}>{booking.service?.description || booking.serviceDescription}</Text>
 
                                 {booking.status === 'COMPLETED' && (
                                     <TouchableOpacity
@@ -199,22 +204,35 @@ export default function ServicesScreen() {
                         services.map((service) => (
                             <TouchableOpacity
                                 key={service.id}
-                                style={styles.card}
+                                style={[styles.card, { padding: 0, overflow: 'hidden' }]}
                                 onPress={() => openDetailsModal(service)}
                             >
-                                <View style={styles.cardHeader}>
-                                    <Text style={styles.serviceName}>{service.serviceName}</Text>
-                                    <IconSymbol name="chevron.right" size={20} color={Colors.light.gold} />
+                                {service.imageUrl ? (
+                                    <Image
+                                        source={{ uri: service.imageUrl }}
+                                        style={styles.browseImage}
+                                        resizeMode="cover"
+                                    />
+                                ) : (
+                                    <View style={[styles.browseImage, { backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' }]}>
+                                        <IconSymbol name="photo" size={40} color="#d1d5db" />
+                                    </View>
+                                )}
+                                <View style={{ padding: 20 }}>
+                                    <View style={styles.cardHeader}>
+                                        <Text style={styles.serviceName}>{service.serviceName}</Text>
+                                        <IconSymbol name="chevron.right" size={20} color={Colors.light.gold} />
+                                    </View>
+                                    <Text style={styles.category}>{service.category}</Text>
+                                    <Text style={styles.price}>ETB {service.price?.toLocaleString()}</Text>
+                                    <Text style={styles.description} numberOfLines={2}>{service.description}</Text>
+                                    <TouchableOpacity
+                                        style={styles.bookButton}
+                                        onPress={() => handleBookService(service)}
+                                    >
+                                        <Text style={styles.bookButtonText}>Request Booking</Text>
+                                    </TouchableOpacity>
                                 </View>
-                                <Text style={styles.category}>{service.category}</Text>
-                                <Text style={styles.price}>ETB {service.price?.toLocaleString()}</Text>
-                                <Text style={styles.description} numberOfLines={2}>{service.description}</Text>
-                                <TouchableOpacity
-                                    style={styles.bookButton}
-                                    onPress={() => handleBookService(service)}
-                                >
-                                    <Text style={styles.bookButtonText}>Request Booking</Text>
-                                </TouchableOpacity>
                             </TouchableOpacity>
                         ))
                     ) : (
@@ -279,6 +297,120 @@ export default function ServicesScreen() {
                                     style={styles.submitGradient}
                                 >
                                     <Text style={styles.submitButtonText}>Book Now</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Premium Booking Modal */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={bookingModalVisible}
+                onRequestClose={() => setBookingModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.detailsModalView}>
+                        <ScrollView contentContainerStyle={styles.detailsContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Inquiry Details</Text>
+                                <TouchableOpacity onPress={() => setBookingModalVisible(false)} style={styles.closeButton}>
+                                    <IconSymbol name="xmark" size={20} color={Colors.light.textSecondary} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <Text style={styles.formSubtitle}>Curating your experience with {selectedService?.serviceName}</Text>
+
+                            <View style={styles.budgetInsightBox}>
+                                <Text style={styles.insightTitle}>Budget Insights</Text>
+                                <View style={styles.insightGrid}>
+                                    <View style={styles.insightItem}>
+                                        <Text style={styles.insightLabel}>Total Budget</Text>
+                                        <Text style={styles.insightValue}>ETB {wedding?.budget?.toLocaleString()}</Text>
+                                    </View>
+                                    <View style={styles.insightItem}>
+                                        <Text style={styles.insightLabel}>Investment</Text>
+                                        <Text style={[styles.insightValue, { color: Colors.light.gold }]}>ETB {selectedService?.price?.toLocaleString()}</Text>
+                                    </View>
+                                    <View style={styles.insightItem}>
+                                        <Text style={styles.insightLabel}>Remaining</Text>
+                                        <Text style={[styles.insightValue, {
+                                            color: (wedding?.budget - (bookings.reduce((sum, b) => sum + (b.service?.price || 0), 0) + (selectedService?.price || 0))) < 0 ? Colors.light.error : Colors.light.success
+                                        }]}>
+                                            ETB {(wedding?.budget - (bookings.reduce((sum, b) => sum + (b.service?.price || 0), 0) + (selectedService?.price || 0)))?.toLocaleString()}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+
+                            <View style={styles.formSection}>
+                                <Text style={styles.inputLabel}>Preferred Date</Text>
+                                <View style={styles.inputContainer}>
+                                    <IconSymbol name="calendar" size={18} color={Colors.light.gold} style={styles.inputIcon} />
+                                    <TextInput
+                                        style={styles.formInput}
+                                        value={bookingDate}
+                                        onChangeText={setBookingDate}
+                                        placeholder="YYYY-MM-DD"
+                                        placeholderTextColor="#9ca3af"
+                                    />
+                                </View>
+                            </View>
+
+                            <View style={styles.formSection}>
+                                <Text style={styles.inputLabel}>Event Time</Text>
+                                <View style={styles.inputContainer}>
+                                    <IconSymbol name="clock" size={18} color={Colors.light.gold} style={styles.inputIcon} />
+                                    <TextInput
+                                        style={styles.formInput}
+                                        value={bookingTime}
+                                        onChangeText={setBookingTime}
+                                        placeholder="e.g. 14:00"
+                                        placeholderTextColor="#9ca3af"
+                                    />
+                                </View>
+                            </View>
+
+                            <View style={styles.formSection}>
+                                <Text style={styles.inputLabel}>Venue Location</Text>
+                                <View style={styles.inputContainer}>
+                                    <IconSymbol name="mappin.and.ellipse" size={18} color={Colors.light.gold} style={styles.inputIcon} />
+                                    <TextInput
+                                        style={styles.formInput}
+                                        value={bookingLocation}
+                                        onChangeText={setBookingLocation}
+                                        placeholder="Where will the celebration take place?"
+                                        placeholderTextColor="#9ca3af"
+                                    />
+                                </View>
+                            </View>
+
+                            <View style={styles.formSection}>
+                                <Text style={styles.inputLabel}>Bespoke Requirements</Text>
+                                <TextInput
+                                    style={[styles.formInput, { height: 100, textAlignVertical: 'top', paddingVertical: 12 }]}
+                                    value={bookingNotes}
+                                    onChangeText={setBookingNotes}
+                                    placeholder="Share any specific visions or special accommodations you desire..."
+                                    multiline
+                                    placeholderTextColor="#9ca3af"
+                                />
+                            </View>
+
+                            <TouchableOpacity
+                                style={[styles.detailsBookButton, isBooking && { opacity: 0.7 }]}
+                                onPress={confirmBooking}
+                                disabled={isBooking}
+                            >
+                                <LinearGradient
+                                    colors={[Colors.light.gold, '#b8962e']}
+                                    style={styles.submitGradient}
+                                >
+                                    <Text style={styles.submitButtonText}>
+                                        {isBooking ? "Delivering Inquiry..." : "Confirm Booking Inquiry"}
+                                    </Text>
                                 </LinearGradient>
                             </TouchableOpacity>
                         </ScrollView>
@@ -431,6 +563,10 @@ const styles = StyleSheet.create({
         elevation: 3,
         borderWidth: 1,
         borderColor: 'rgba(212, 175, 55, 0.1)',
+    },
+    browseImage: {
+        width: '100%',
+        height: 150,
     },
     cardHeader: {
         flexDirection: 'row',
@@ -666,5 +802,75 @@ const styles = StyleSheet.create({
         marginTop: 20,
         borderRadius: 16,
         overflow: 'hidden',
+    },
+    // Premium Form Styles
+    formSubtitle: {
+        fontFamily: Fonts.Cormorant.Regular,
+        fontSize: 18,
+        color: Colors.light.textSecondary,
+        marginBottom: 24,
+    },
+    budgetInsightBox: {
+        background: 'rgba(212, 175, 55, 0.05)',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(212, 175, 55, 0.1)',
+        backgroundColor: '#fdfaf2',
+    },
+    insightTitle: {
+        fontFamily: Fonts.Playfair.Bold,
+        fontSize: 18,
+        color: Colors.light.text,
+        marginBottom: 16,
+    },
+    insightGrid: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    insightItem: {
+        flex: 1,
+    },
+    insightLabel: {
+        fontFamily: Fonts.Cormorant.Regular,
+        fontSize: 12,
+        color: Colors.light.textSecondary,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: 4,
+    },
+    insightValue: {
+        fontFamily: Fonts.Playfair.Bold,
+        fontSize: 16,
+        color: Colors.light.text,
+    },
+    formSection: {
+        marginBottom: 20,
+    },
+    inputLabel: {
+        fontFamily: Fonts.Cormorant.Bold,
+        fontSize: 16,
+        color: Colors.light.text,
+        marginBottom: 8,
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        borderRadius: 12,
+        paddingHorizontal: 12,
+    },
+    inputIcon: {
+        marginRight: 12,
+    },
+    formInput: {
+        flex: 1,
+        height: 50,
+        fontFamily: Fonts.Cormorant.Regular,
+        fontSize: 17,
+        color: Colors.light.text,
     },
 });

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import AdminSidebar from "../../components/AdminSidebar";
-import { getAllUsers, getAllWeddings, assignWeddingToManager, createManager, createProtocol, deleteUser } from "../../utils/api";
-import { UserPlus, Users, Calendar, Settings, Trash2, UserCheck } from "lucide-react";
+import { getAllUsers, getAllWeddings, assignWeddingToManager, createManager, createProtocol, deleteUser, getAllAssignments } from "../../utils/api";
+import { UserPlus, Users, Calendar, Settings, Trash2, UserCheck, CheckCircle } from "lucide-react";
 import "./AdminDashboard.css";
 
 export default function AdminDashboard() {
@@ -10,8 +10,11 @@ export default function AdminDashboard() {
   const [userId, setUserId] = useState(null);
   const [users, setUsers] = useState([]);
   const [weddings, setWeddings] = useState([]);
+  const [activeWeddings, setActiveWeddings] = useState([]);
+  const [completedWeddings, setCompletedWeddings] = useState([]);
   const [managers, setManagers] = useState([]);
   const [protocols, setProtocols] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [newUserRole, setNewUserRole] = useState("MANAGER");
   const [selectedWedding, setSelectedWedding] = useState(null);
@@ -53,14 +56,28 @@ export default function AdminDashboard() {
     }
     setIsLoading(true);
     try {
-      const [usersData, weddingsData] = await Promise.all([
+      const [usersData, weddingsData, assignmentsData] = await Promise.all([
         getAllUsers(userId),
-        getAllWeddings()
+        getAllWeddings(),
+        getAllAssignments()
       ]);
       setUsers(usersData || []);
       setWeddings(weddingsData || []);
+      setAssignments(assignmentsData || []);
+
       setManagers((usersData || []).filter(u => u.selectedRole === "MANAGER"));
       setProtocols((usersData || []).filter(u => u.selectedRole === "PROTOCOL"));
+
+      // Categorize weddings
+      const completedIds = (assignmentsData || [])
+        .filter(a => a.status === "COMPLETED")
+        .map(a => a.weddingId);
+
+      const comp = (weddingsData || []).filter(w => completedIds.includes(w.id));
+      const act = (weddingsData || []).filter(w => !completedIds.includes(w.id));
+
+      setCompletedWeddings(comp);
+      setActiveWeddings(act);
     } catch (error) {
       console.error("Failed to load data:", error);
       setUsers([]);
@@ -181,8 +198,58 @@ export default function AdminDashboard() {
             <div className="stat-card">
               <Calendar size={32} color="#ef4444" />
               <div>
-                <h3>{weddings.length}</h3>
-                <p>Weddings</p>
+                <h3>{activeWeddings.length}</h3>
+                <p>Active Weddings</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <CheckCircle size={32} color="#065f46" />
+              <div>
+                <h3>{completedWeddings.length}</h3>
+                <p>Completed Weddings</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Wedding Sections */}
+          <div className="wedding-status-grid">
+            <div className="section-card">
+              <div className="section-header">
+                <h2>Active Weddings</h2>
+                <span className="count-badge active">{activeWeddings.length}</span>
+              </div>
+              <div className="wedding-scroll-list">
+                {activeWeddings.length === 0 ? <p className="empty-text">No active weddings</p> :
+                  activeWeddings.map(w => (
+                    <div key={w.id} className="wedding-compact-item">
+                      <div className="w-info">
+                        <span className="w-name">{w.partnersName}</span>
+                        <span className="w-date">{new Date(w.weddingDate).toLocaleDateString()}</span>
+                      </div>
+                      <span className="status-dot active"></span>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+
+            <div className="section-card">
+              <div className="section-header">
+                <h2>Completed Weddings</h2>
+                <span className="count-badge completed">{completedWeddings.length}</span>
+              </div>
+              <div className="wedding-scroll-list">
+                {completedWeddings.length === 0 ? <p className="empty-text">No completed weddings</p> :
+                  completedWeddings.map(w => (
+                    <div key={w.id} className="wedding-compact-item">
+                      <div className="w-info">
+                        <span className="w-name">{w.partnersName}</span>
+                        <span className="w-date">{new Date(w.weddingDate).toLocaleDateString()}</span>
+                      </div>
+                      <span className="status-dot completed"></span>
+                    </div>
+                  ))
+                }
               </div>
             </div>
           </div>

@@ -55,7 +55,13 @@ public class Guest {
     
     @Column(name = "seat_number")
     private String seatNumber;
-    
+
+    @Column(name = "checked_in")
+    private Boolean checkedIn = false;
+
+    @Column(name = "checked_in_at")
+    private LocalDateTime checkedInAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
     

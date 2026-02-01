@@ -99,10 +99,22 @@ export default function PaymentsScreen() {
         }
     };
 
-    const totalPaid = payments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0);
-    const totalOutstanding = payments.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + p.amount, 0);
-    const totalBudget = wedding?.budget || 0;
-    const totalBooked = bookings.reduce((sum, b) => sum + (b.service?.price || 0), 0);
+    const SERVICE_CHARGE = 10000;
+
+    const calculateServicesTotal = () => {
+        const uniqueServiceIds = new Set();
+        return bookings.reduce((sum, booking) => {
+            if (booking.status === "ACCEPTED" && booking.serviceId && !uniqueServiceIds.has(booking.serviceId)) {
+                uniqueServiceIds.add(booking.serviceId);
+                return sum + (booking.service?.price || 0);
+            }
+            return sum;
+        }, 0);
+    };
+
+    const totalPaid = payments.reduce((sum, p) => sum + (p.status === 'PAID' ? (p.amount || 0) : 0), 0);
+    const totalCost = calculateServicesTotal() + SERVICE_CHARGE;
+    const remainingBalance = Math.max(0, totalCost - totalPaid);
 
     return (
         <View style={styles.container}>
@@ -127,8 +139,8 @@ export default function PaymentsScreen() {
                     >
                         <View style={styles.summaryRow}>
                             <View>
-                                <Text style={styles.summaryLabel}>Total Budget</Text>
-                                <Text style={styles.summaryValue}>ETB {totalBudget.toLocaleString()}</Text>
+                                <Text style={styles.summaryLabel}>Overall Budget</Text>
+                                <Text style={styles.summaryValue}>ETB {totalCost.toLocaleString()}</Text>
                             </View>
                             <View style={styles.summaryDivider} />
                             <View>
@@ -137,8 +149,8 @@ export default function PaymentsScreen() {
                             </View>
                         </View>
                         <View style={styles.summaryFooter}>
-                            <Text style={styles.summaryFooterLabel}>Outstanding Balance:</Text>
-                            <Text style={styles.summaryFooterValue}>ETB {totalOutstanding.toLocaleString()}</Text>
+                            <Text style={styles.summaryFooterLabel}>Outstanding Price:</Text>
+                            <Text style={styles.summaryFooterValue}>ETB {remainingBalance.toLocaleString()}</Text>
                         </View>
                     </LinearGradient>
                 </View>
@@ -151,7 +163,9 @@ export default function PaymentsScreen() {
                             <View style={styles.cardHeader}>
                                 <Text style={styles.paymentTitle}>{payment.description || "Payment"}</Text>
                                 <View style={[styles.badge, { backgroundColor: getStatusColor(payment.status) }]}>
-                                    <Text style={styles.badgeText}>{payment.status}</Text>
+                                    <Text style={styles.badgeText}>
+                                        {payment.status === 'PAID' ? 'Settled' : 'Outstanding'}
+                                    </Text>
                                 </View>
                             </View>
 
@@ -349,5 +363,11 @@ const styles = StyleSheet.create({
         fontSize: 22,
         color: Colors.light.text,
         marginBottom: 16,
+    },
+    paidDetail: {
+        fontSize: 14,
+        color: Colors.light.success,
+        fontFamily: Fonts.Cormorant.Bold,
+        marginBottom: 8,
     },
 });

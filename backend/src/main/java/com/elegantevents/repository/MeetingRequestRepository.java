@@ -11,6 +11,4 @@ import java.util.List;
 public interface MeetingRequestRepository extends JpaRepository<MeetingRequest, Long> {
     List<MeetingRequest> findByCouple(User couple);
     List<MeetingRequest> findByManager(User manager);
-    List<MeetingRequest> findByCoupleId(Long coupleId);
-    List<MeetingRequest> findByManagerId(Long managerId);
 }

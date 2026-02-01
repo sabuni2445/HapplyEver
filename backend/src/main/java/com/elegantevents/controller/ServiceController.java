@@ -50,6 +50,12 @@ public class ServiceController {
         List<com.elegantevents.model.Service> allServices = serviceService.getAllActiveServices();
         return ResponseEntity.ok(allServices);
     }
+
+    @GetMapping("/featured")
+    public ResponseEntity<List<com.elegantevents.model.Service>> getFeaturedServices() {
+        List<com.elegantevents.model.Service> featured = serviceService.getPremiumServices();
+        return ResponseEntity.ok(featured);
+    }
     
     @GetMapping("/id/{id}")
     public ResponseEntity<com.elegantevents.model.Service> getServiceById(@PathVariable Long id) {

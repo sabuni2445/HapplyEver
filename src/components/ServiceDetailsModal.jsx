@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { X, Star, Calendar, MapPin, DollarSign, Clock } from "lucide-react";
-import { createBooking, getServiceRatings, createRating } from "../utils/api";
+import { X, Star, Calendar, MapPin, DollarSign, Clock, User, ShieldCheck } from "lucide-react";
+import { createBooking, getServiceRatings, createRating, getUserByClerkId } from "../utils/api";
 import BookingForm from "./BookingForm";
 import RatingForm from "./RatingForm";
 import "./ServiceDetailsModal.css";
@@ -9,169 +9,221 @@ export default function ServiceDetailsModal({ service, coupleClerkId, onClose })
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [showRatingForm, setShowRatingForm] = useState(false);
   const [ratings, setRatings] = useState([]);
+  const [vendor, setVendor] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(false);
 
-  const loadRatings = async () => {
-    try {
-      const ratingsData = await getServiceRatings(service.id);
-      setRatings(ratingsData);
-    } catch (error) {
-      console.error("Failed to load ratings:", error);
-    }
-  };
-
   useEffect(() => {
-    loadRatings();
-  }, [service.id]);
+    const fetchData = async () => {
+      try {
+        const [ratingsData, vendorData] = await Promise.all([
+          getServiceRatings(service.id),
+          getUserByClerkId(service.clerkId)
+        ]);
+        setRatings(ratingsData);
+        setVendor(vendorData);
+      } catch (error) {
+        console.error("Failed to load modal data:", error);
+      }
+    };
+    fetchData();
+  }, [service.id, service.clerkId]);
 
   const handleBookingSuccess = () => {
     setBookingSuccess(true);
     setShowBookingForm(false);
-    setTimeout(() => setBookingSuccess(false), 3000);
+    setTimeout(() => setBookingSuccess(false), 5000);
+  };
+
+  const isVideo = (url) => {
+    if (!url) return false;
+    return url.match(/\.(mp4|webm|ogg|mov)$/i) || url.includes('video');
   };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content editorial-modal" onClick={(e) => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>
-          <X size={24} />
+          <X size={20} />
         </button>
 
         <div className="modal-body">
-          {service.imageUrl && (
-            <div className="service-modal-image">
-              <img src={service.imageUrl} alt={service.serviceName} />
-            </div>
-          )}
-
-          <div className="service-modal-header">
-            <h2>{service.serviceName}</h2>
-            {service.averageRating > 0 && (
-              <div className="service-rating-large">
-                <Star size={20} fill="#d4af37" color="#d4af37" />
-                <span>{service.averageRating.toFixed(1)}</span>
-                <span className="rating-count">({service.ratingCount} reviews)</span>
-              </div>
+          <div className="service-hero">
+            {isVideo(service.videoUrl || service.imageUrl) ? (
+              <video
+                src={service.videoUrl || service.imageUrl}
+                className="hero-video"
+                autoPlay
+                loop
+                muted
+                playsInline
+              />
+            ) : (
+              service.imageUrl && <img src={service.imageUrl} alt={service.serviceName} className="hero-img" />
             )}
+            <div className="hero-overlay">
+              <div className="hero-content">
+                <div className="hero-badge-row">
+                  <span className="hero-pretitle">PREMIUM PARTNER</span>
+                  {vendor?.packageType === 'PREMIUM' && (
+                    <div className="premium-badge">
+                      <ShieldCheck size={12} />
+                      <span>VERIFIED PRO</span>
+                    </div>
+                  )}
+                </div>
+                <h2 className="hero-title">{service.serviceName}</h2>
+                <div className="hero-meta">
+                  <span className="category-tag">{service.category}</span>
+                  {service.averageRating > 0 && (
+                    <div className="rating-tag">
+                      <Star size={14} fill="#d4af37" color="#d4af37" />
+                      <span>{service.averageRating.toFixed(1)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {service.category && (
-            <p className="service-category-badge">{service.category}</p>
-          )}
-
-          <div className="service-details-grid">
-            {service.price && (
-              <div className="detail-item">
-                <DollarSign size={20} />
-                <div>
-                  <strong>Price:</strong>
-                  <p>${service.price.toFixed(2)} {service.amount && `/ ${service.amount}`}</p>
+          <div className="service-info-section">
+            <div className="info-grid">
+              {service.price && (
+                <div className="info-card">
+                  <p className="info-label">Investment</p>
+                  <p className="info-value">ETB {service.price.toLocaleString()}</p>
+                  <p className="info-sub">{service.amount || "starting rate"}</p>
                 </div>
-              </div>
-            )}
-            {service.duration && (
-              <div className="detail-item">
-                <Clock size={20} />
-                <div>
-                  <strong>Duration:</strong>
-                  <p>{service.duration}</p>
+              )}
+              {service.location && (
+                <div className="info-card">
+                  <p className="info-label">Location</p>
+                  <p className="info-value">{service.location}</p>
+                  <p className="info-sub">Service Area</p>
                 </div>
-              </div>
-            )}
-            {service.location && (
-              <div className="detail-item">
-                <MapPin size={20} />
-                <div>
-                  <strong>Location:</strong>
-                  <p>{service.location}</p>
+              )}
+              {service.duration && (
+                <div className="info-card">
+                  <p className="info-label">Duration</p>
+                  <p className="info-value">{service.duration}</p>
+                  <p className="info-sub">Estimated Time</p>
                 </div>
-              </div>
-            )}
-            {service.availability && (
-              <div className="detail-item">
-                <Calendar size={20} />
-                <div>
-                  <strong>Availability:</strong>
-                  <p>{service.availability}</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="service-description-full">
-            <h3>Description</h3>
-            <p>{service.description}</p>
-          </div>
-
-          {bookingSuccess && (
-            <div className="success-message">
-              ✅ Booking request sent! The vendor will review and respond.
+              )}
             </div>
-          )}
 
-          {!showBookingForm && !showRatingForm && (
-            <div className="modal-actions">
-              <button
-                className="btn-primary"
-                onClick={() => setShowBookingForm(true)}
-              >
-                Request Booking
-              </button>
-              <button
-                className="btn-secondary"
-                onClick={() => setShowRatingForm(true)}
-              >
-                Rate & Review
-              </button>
-            </div>
-          )}
+            <div className="editorial-layout-split">
+              <div className="editorial-main-col">
+                <div className="editorial-description">
+                  <h3 className="section-title-small">The Experience</h3>
+                  <p className="description-text">{service.description}</p>
+                </div>
 
-          {showBookingForm && (
-            <BookingForm
-              service={service}
-              coupleClerkId={coupleClerkId}
-              onSuccess={handleBookingSuccess}
-              onCancel={() => setShowBookingForm(false)}
-            />
-          )}
-
-          {showRatingForm && (
-            <RatingForm
-              service={service}
-              coupleClerkId={coupleClerkId}
-              onSuccess={() => {
-                setShowRatingForm(false);
-                loadRatings();
-              }}
-              onCancel={() => setShowRatingForm(false)}
-            />
-          )}
-
-          {ratings.length > 0 && (
-            <div className="ratings-section">
-              <h3>Reviews</h3>
-              {ratings.map((rating) => (
-                <div key={rating.id} className="rating-item">
-                  <div className="rating-header">
-                    <div className="rating-stars">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          size={16}
-                          fill={i < rating.rating ? "#d4af37" : "none"}
-                          color="#d4af37"
-                        />
+                {ratings.length > 0 && !showBookingForm && !showRatingForm && (
+                  <div className="editorial-reviews">
+                    <h3 className="section-title-small">Kind Words</h3>
+                    <div className="reviews-list">
+                      {ratings.slice(0, 3).map((rating) => (
+                        <div key={rating.id} className="review-card">
+                          <div className="review-header">
+                            <div className="review-rating">
+                              {[...Array(5)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  size={10}
+                                  fill={i < rating.rating ? "#d4af37" : "none"}
+                                  color="#d4af37"
+                                />
+                              ))}
+                            </div>
+                            <span className="review-date">
+                              {new Date(rating.createdAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                            </span>
+                          </div>
+                          <p className="review-text">"{rating.comment}"</p>
+                        </div>
                       ))}
                     </div>
-                    <span className="rating-date">
-                      {new Date(rating.createdAt).toLocaleDateString()}
-                    </span>
                   </div>
-                  {rating.comment && <p className="rating-comment">{rating.comment}</p>}
+                )}
+              </div>
+
+              <div className="editorial-side-col">
+                <div className="vendor-mini-profile">
+                  <h3 className="section-title-small">Presented By</h3>
+                  <div className="vendor-card-compact">
+                    {vendor?.imageUrl ? (
+                      <img src={vendor.imageUrl} alt={vendor.firstName} className="vendor-avatar" />
+                    ) : (
+                      <div className="vendor-avatar-placeholder"><User size={20} /></div>
+                    )}
+                    <div className="vendor-details">
+                      <p className="vendor-name">{vendor ? `${vendor.firstName} ${vendor.lastName}` : "Professional Vendor"}</p>
+                      <p className="vendor-role">Wedding Specialist</p>
+                    </div>
+                  </div>
+                  <p className="vendor-bio">
+                    Dedicated to making your special day extraordinary with bespoke {service.category?.toLowerCase() || 'service'} solutions.
+                  </p>
                 </div>
-              ))}
+
+                <div className="side-actions">
+                  {!showBookingForm && !showRatingForm && (
+                    <>
+                      <button
+                        className="btn-editorial-primary"
+                        onClick={() => setShowBookingForm(true)}
+                      >
+                        Check Availability
+                      </button>
+                      <button
+                        className="btn-editorial-secondary"
+                        onClick={() => setShowRatingForm(true)}
+                      >
+                        Add a Review
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
-          )}
+
+            {bookingSuccess && (
+              <div className="success-banner">
+                <span className="success-icon">✨</span>
+                <p>Your request has been gracefully delivered to {service.serviceName}.</p>
+              </div>
+            )}
+
+            {showBookingForm && (
+              <div className="form-container-reveal">
+                <div className="form-reveal-header">
+                  <button onClick={() => setShowBookingForm(false)} className="back-link">← Return to Service</button>
+                </div>
+                <BookingForm
+                  service={service}
+                  coupleClerkId={coupleClerkId}
+                  onSuccess={handleBookingSuccess}
+                  onCancel={() => setShowBookingForm(false)}
+                />
+              </div>
+            )}
+
+            {showRatingForm && (
+              <div className="form-container-reveal">
+                <div className="form-reveal-header">
+                  <button onClick={() => setShowRatingForm(false)} className="back-link">← Return to Service</button>
+                </div>
+                <RatingForm
+                  service={service}
+                  coupleClerkId={coupleClerkId}
+                  onSuccess={() => {
+                    setShowRatingForm(false);
+                    loadRatings();
+                  }}
+                  onCancel={() => setShowRatingForm(false)}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

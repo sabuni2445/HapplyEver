@@ -83,3 +83,7 @@ CREATE TABLE IF NOT EXISTS payments (
     INDEX idx_couple_clerk_id (couple_clerk_id),
     INDEX idx_status (status)
 );
+
+-- Fix task status and category truncation
+ALTER TABLE tasks MODIFY COLUMN status VARCHAR(50) NOT NULL;
+ALTER TABLE tasks MODIFY COLUMN category VARCHAR(50) NOT NULL;

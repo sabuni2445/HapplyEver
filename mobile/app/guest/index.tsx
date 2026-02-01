@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, Alert, Animated, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, Alert, Animated, Dimensions, ActivityIndicator, Modal } from 'react-native';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter, useFocusEffect, Stack } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -8,7 +8,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getGuestByCode, getWeddingDetails } from '@/utils/api';
 import { BlurView } from 'expo-blur';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function GuestHomeScreen() {
     const router = useRouter();
@@ -18,30 +18,11 @@ export default function GuestHomeScreen() {
     const [showAddModal, setShowAddModal] = useState(false);
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(50)).current;
-    const fabScale = useRef(new Animated.Value(0)).current;
+    const scrollY = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 800,
-                useNativeDriver: true,
-            }),
-            Animated.spring(slideAnim, {
-                toValue: 0,
-                tension: 50,
-                friction: 7,
-                useNativeDriver: true,
-            }),
-            Animated.spring(fabScale, {
-                toValue: 1,
-                tension: 50,
-                friction: 7,
-                delay: 400,
-                useNativeDriver: true,
-            }),
-        ]).start();
+        Animated.timing(fadeAnim, { toValue: 1, duration: 1000, useNativeDriver: true }).start();
+        loadInvitations();
     }, []);
 
     useFocusEffect(
@@ -66,502 +47,204 @@ export default function GuestHomeScreen() {
         setIsLoading(true);
         try {
             const guestData = await getGuestByCode(newCode.trim());
-
-            let weddingName = "Wedding Invitation";
+            let weddingName = "Wedding Celebration";
             let weddingDate = "";
+            let location = "";
 
             try {
                 if (guestData.coupleClerkId) {
                     const weddingData = await getWeddingDetails(guestData.coupleClerkId);
-                    weddingName = weddingData.coupleName || weddingData.partnersName || "Wedding Invitation";
+                    weddingName = weddingData.partnersName || "The Wedding";
                     weddingDate = weddingData.weddingDate;
+                    location = weddingData.location;
                 }
-            } catch (e) {
-                console.log("Could not fetch wedding details for preview", e);
-            }
+            } catch (e) { }
 
             const newInvite = {
                 code: guestData.uniqueCode,
                 guestName: guestData.firstName,
                 weddingName: weddingName,
                 date: weddingDate,
+                location: location,
                 addedAt: new Date().toISOString()
             };
 
-            const updated = [
-                newInvite,
-                ...invitations.filter(i => i.code !== newInvite.code)
-            ];
-
+            const updated = [newInvite, ...invitations.filter(i => i.code !== newInvite.code)];
             await AsyncStorage.setItem('guest_invitations', JSON.stringify(updated));
             setInvitations(updated);
             setNewCode("");
             setShowAddModal(false);
-            Alert.alert("✨ Success", "Invitation added to your collection!");
+            Alert.alert("✨ Invitation Found", `Welcome to ${weddingName}`);
         } catch (error) {
-            Alert.alert("Invalid Code", "Please check your invitation code and try again.");
+            Alert.alert("Invalid Code", "Please check your invitation code.");
         } finally {
             setIsLoading(false);
         }
     };
 
     const removeInvitation = async (code: string) => {
-        Alert.alert(
-            "Remove Invitation",
-            "Are you sure you want to remove this invitation?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Remove",
-                    style: "destructive",
-                    onPress: async () => {
-                        const updated = invitations.filter(i => i.code !== code);
-                        setInvitations(updated);
-                        await AsyncStorage.setItem('guest_invitations', JSON.stringify(updated));
-                    }
+        Alert.alert("Remove Invitation", "Hide this invitation?", [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Remove", style: "destructive", onPress: async () => {
+                    const updated = invitations.filter(i => i.code !== code);
+                    setInvitations(updated);
+                    await AsyncStorage.setItem('guest_invitations', JSON.stringify(updated));
                 }
-            ]
-        );
+            }
+        ]);
     };
 
     return (
         <View style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
-            <LinearGradient
-                colors={['#fff5f7', '#ffe8ec', '#ffd6dd']}
-                style={styles.background}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-            />
+            <LinearGradient colors={['#fff', '#fcfaf8', '#f8f4f0']} style={StyleSheet.absoluteFill} />
 
-            {/* Animated Header */}
-            <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-                <TouchableOpacity onPress={() => router.replace('/')} style={styles.backButton}>
-                    <View style={styles.backButtonInner}>
-                        <IconSymbol name="chevron.left" size={20} color="#8b6f47" />
-                    </View>
-                </TouchableOpacity>
-                <Text style={styles.title}>✨ My Invitations</Text>
-                <Text style={styles.subtitle}>Your exclusive wedding passes</Text>
-            </Animated.View>
-
-            <ScrollView
-                contentContainerStyle={styles.content}
+            <Animated.ScrollView
+                contentContainerStyle={styles.scrollContent}
+                onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
                 showsVerticalScrollIndicator={false}
             >
-                {invitations.length === 0 ? (
-                    <Animated.View style={[styles.emptyState, { opacity: fadeAnim }]}>
-                        <LinearGradient
-                            colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
-                            style={styles.emptyCard}
-                        >
-                            <IconSymbol name="envelope.open.fill" size={64} color="rgba(139,111,71,0.3)" />
-                            <Text style={styles.emptyTitle}>No Invitations Yet</Text>
-                            <Text style={styles.emptyText}>Tap the + button to add your first invitation</Text>
-                        </LinearGradient>
-                    </Animated.View>
-                ) : (
-                    invitations.map((invite, index) => (
-                        <Animated.View
-                            key={invite.code}
-                            style={[
-                                styles.cardWrapper,
-                                {
-                                    opacity: fadeAnim,
-                                    transform: [{
-                                        translateY: slideAnim.interpolate({
-                                            inputRange: [0, 50],
-                                            outputRange: [0, 50 + index * 20]
-                                        })
-                                    }]
-                                }
-                            ]}
-                        >
-                            <TouchableOpacity
-                                style={styles.card}
-                                onPress={() => router.push(`/guest/${invite.code}` as any)}
-                                activeOpacity={0.9}
-                            >
-                                <LinearGradient
-                                    colors={['rgba(255,255,255,0.95)', 'rgba(255,245,247,0.9)']}
-                                    style={styles.cardGradient}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 1 }}
-                                >
-                                    <View style={styles.cardHeader}>
-                                        <View style={styles.iconBadge}>
-                                            <IconSymbol name="sparkles" size={20} color="#d4a574" />
-                                        </View>
-                                        <TouchableOpacity
-                                            onPress={() => removeInvitation(invite.code)}
-                                            style={styles.deleteButton}
-                                        >
-                                            <IconSymbol name="xmark.circle.fill" size={24} color="rgba(139,111,71,0.6)" />
-                                        </TouchableOpacity>
-                                    </View>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.replace('/')} style={styles.backFab}>
+                        <IconSymbol name="chevron.left" size={20} color={Colors.light.text} />
+                    </TouchableOpacity>
+                    <Text style={styles.title}>Journal</Text>
+                    <Text style={styles.subtitle}>MY WEDDING INVITATIONS</Text>
+                </View>
 
-                                    <Text style={styles.weddingName}>{invite.weddingName}</Text>
-                                    <Text style={styles.guestName}>For: {invite.guestName}</Text>
+                {invitations.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                        <View style={styles.emptyIconBox}>
+                            <IconSymbol name="envelope.open" size={40} color="#ccc" />
+                        </View>
+                        <Text style={styles.emptyTitle}>Your collection is empty</Text>
+                        <Text style={styles.emptySubtitle}>Enter your guest code to add a digital invitation to your journal.</Text>
+                        <TouchableOpacity style={styles.addBtnLarge} onPress={() => setShowAddModal(true)}>
+                            <Text style={styles.addBtnLargeText}>ADD INVITATION</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <View style={styles.invitationGrid}>
+                        {invitations.map((invite, index) => (
+                            <TouchableOpacity
+                                key={invite.code}
+                                style={styles.inviteCard}
+                                activeOpacity={0.9}
+                                onPress={() => router.push(`/guest/${invite.code}`)}
+                            >
+                                <View style={styles.cardInfo}>
+                                    <Text style={styles.cardPreTitle}>THE WEDDING OF</Text>
+                                    <Text style={styles.cardTitle}>{invite.weddingName.toUpperCase()}</Text>
 
                                     <View style={styles.cardFooter}>
-                                        <View style={styles.codeBadge}>
-                                            <IconSymbol name="qrcode" size={14} color="#d4a574" />
-                                            <Text style={styles.codeText}>{invite.code}</Text>
+                                        <View style={styles.metaBox}>
+                                            <IconSymbol name="calendar" size={12} color={Colors.light.gold} />
+                                            <Text style={styles.metaText}>
+                                                {invite.date ? new Date(invite.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Set'}
+                                            </Text>
                                         </View>
-                                        {invite.date && (
-                                            <View style={styles.dateBadge}>
-                                                <IconSymbol name="calendar" size={14} color="rgba(255,255,255,0.7)" />
-                                                <Text style={styles.dateText}>
-                                                    {new Date(invite.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                                </Text>
-                                            </View>
-                                        )}
+                                        <View style={styles.metaBox}>
+                                            <IconSymbol name="signature" size={12} color={Colors.light.gold} />
+                                            <Text style={styles.metaText}>{invite.code}</Text>
+                                        </View>
                                     </View>
-
-                                    <View style={styles.arrowContainer}>
-                                        <IconSymbol name="arrow.right.circle.fill" size={32} color="rgba(212,165,116,0.8)" />
-                                    </View>
-                                </LinearGradient>
+                                </View>
+                                <TouchableOpacity style={styles.removeBtn} onPress={() => removeInvitation(invite.code)}>
+                                    <IconSymbol name="xmark" size={14} color="#ccc" />
+                                </TouchableOpacity>
                             </TouchableOpacity>
-                        </Animated.View>
-                    ))
+                        ))}
+                    </View>
                 )}
-            </ScrollView>
+            </Animated.ScrollView>
 
-            {/* Floating Action Button */}
-            <Animated.View style={[styles.fab, { transform: [{ scale: fabScale }] }]}>
-                <TouchableOpacity
-                    onPress={() => setShowAddModal(true)}
-                    activeOpacity={0.8}
-                >
-                    <LinearGradient
-                        colors={['#d4a574', '#e6c79c', '#d4a574']}
-                        style={styles.fabGradient}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                    >
-                        <IconSymbol name="plus" size={28} color="#1a1a2e" />
+            {/* Floating Add Button */}
+            {invitations.length > 0 && (
+                <TouchableOpacity style={styles.fab} onPress={() => setShowAddModal(true)}>
+                    <LinearGradient colors={[Colors.light.gold, '#B89627']} style={styles.fabGradient}>
+                        <IconSymbol name="plus" size={24} color="#fff" />
                     </LinearGradient>
                 </TouchableOpacity>
-            </Animated.View>
+            )}
 
             {/* Add Modal */}
-            {showAddModal && (
+            <Modal visible={showAddModal} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
-                    <TouchableOpacity
-                        style={styles.modalBackdrop}
-                        activeOpacity={1}
-                        onPress={() => setShowAddModal(false)}
-                    />
-                    <BlurView intensity={20} style={styles.modalBlur}>
-                        <LinearGradient
-                            colors={['rgba(255,255,255,0.98)', 'rgba(255,245,247,0.95)']}
-                            style={styles.modalContent}
-                        >
-                            <Text style={styles.modalTitle}>Add Invitation</Text>
-                            <Text style={styles.modalSubtitle}>Enter your unique invitation code</Text>
+                    <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Add Invitation</Text>
+                        <Text style={styles.modalSubtitle}>Enter the code found on your physical card or message.</Text>
 
+                        <View style={styles.inputWrapper}>
                             <TextInput
-                                style={styles.modalInput}
+                                style={styles.input}
                                 placeholder="GUEST-XXXX"
-                                placeholderTextColor="rgba(139,111,71,0.4)"
+                                placeholderTextColor="#ccc"
                                 value={newCode}
                                 onChangeText={setNewCode}
                                 autoCapitalize="characters"
-                                autoFocus
                             />
+                        </View>
 
-                            <View style={styles.modalButtons}>
-                                <TouchableOpacity
-                                    style={styles.modalCancelBtn}
-                                    onPress={() => setShowAddModal(false)}
-                                >
-                                    <Text style={styles.modalCancelText}>Cancel</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={styles.modalAddBtn}
-                                    onPress={handleAddInvitation}
-                                    disabled={isLoading}
-                                >
-                                    <LinearGradient
-                                        colors={['#d4a574', '#e6c79c']}
-                                        style={styles.modalAddGradient}
-                                    >
-                                        <Text style={styles.modalAddText}>{isLoading ? "..." : "Add"}</Text>
-                                    </LinearGradient>
-                                </TouchableOpacity>
-                            </View>
-                        </LinearGradient>
-                    </BlurView>
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAddModal(false)}>
+                                <Text style={styles.cancelText}>CANCEL</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.submitBtn} onPress={handleAddInvitation} disabled={isLoading}>
+                                <LinearGradient colors={[Colors.light.gold, '#B89627']} style={styles.submitGradient}>
+                                    {isLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.submitText}>ADD TO JOURNAL</Text>}
+                                </LinearGradient>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
                 </View>
-            )}
+            </Modal>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    background: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-    },
-    header: {
-        paddingTop: 60,
-        paddingHorizontal: 24,
-        paddingBottom: 24,
-    },
-    backButton: {
-        marginBottom: 20,
-    },
-    backButtonInner: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(212,165,116,0.2)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(212,165,116,0.3)',
-    },
-    title: {
-        fontFamily: Fonts.Playfair.Bold,
-        fontSize: 36,
-        color: '#8b6f47',
-        marginBottom: 8,
-        letterSpacing: 1,
-    },
-    subtitle: {
-        fontFamily: Fonts.Cormorant.Regular,
-        fontSize: 16,
-        color: 'rgba(139,111,71,0.7)',
-        letterSpacing: 0.5,
-    },
-    content: {
-        padding: 24,
-        paddingBottom: 100,
-    },
-    emptyState: {
-        marginTop: 60,
-    },
-    emptyCard: {
-        padding: 48,
-        borderRadius: 24,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(212,165,116,0.2)',
-    },
-    emptyTitle: {
-        fontFamily: Fonts.Playfair.Bold,
-        fontSize: 24,
-        color: '#8b6f47',
-        marginTop: 24,
-        marginBottom: 8,
-    },
-    emptyText: {
-        fontFamily: Fonts.Cormorant.Regular,
-        fontSize: 16,
-        color: 'rgba(139,111,71,0.6)',
-        textAlign: 'center',
-    },
-    cardWrapper: {
-        marginBottom: 20,
-    },
-    card: {
-        borderRadius: 24,
-        overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 16,
-        elevation: 8,
-    },
-    cardGradient: {
-        padding: 24,
-        borderWidth: 1,
-        borderColor: 'rgba(212,165,116,0.3)',
-        borderRadius: 24,
-        shadowColor: '#d4a574',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    iconBadge: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,215,0,0.2)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    deleteButton: {
-        padding: 4,
-    },
-    weddingName: {
-        fontFamily: Fonts.Playfair.Bold,
-        fontSize: 24,
-        color: '#8b6f47',
-        marginBottom: 8,
-        letterSpacing: 0.5,
-    },
-    guestName: {
-        fontFamily: Fonts.Cormorant.Regular,
-        fontSize: 16,
-        color: 'rgba(139,111,71,0.7)',
-        marginBottom: 20,
-    },
-    cardFooter: {
-        flexDirection: 'row',
-        gap: 12,
-        flexWrap: 'wrap',
-    },
-    codeBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(212,165,116,0.3)',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
-        gap: 6,
-        borderWidth: 1,
-        borderColor: 'rgba(212,165,116,0.4)',
-    },
-    codeText: {
-        fontSize: 12,
-        color: '#8b6f47',
-        fontWeight: '700',
-        letterSpacing: 0.5,
-    },
-    dateBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
-        gap: 6,
-    },
-    dateText: {
-        fontSize: 12,
-        color: 'rgba(139,111,71,0.8)',
-        fontWeight: '600',
-    },
-    arrowContainer: {
-        position: 'absolute',
-        right: 24,
-        bottom: 24,
-    },
-    fab: {
-        position: 'absolute',
-        right: 24,
-        bottom: 40,
-        shadowColor: '#d4a574',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.5,
-        shadowRadius: 12,
-        elevation: 8,
-    },
-    fabGradient: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    modalOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    modalBackdrop: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-    },
-    modalBlur: {
-        width: width - 48,
-        borderRadius: 24,
-        overflow: 'hidden',
-    },
-    modalContent: {
-        padding: 32,
-        borderWidth: 1,
-        borderColor: 'rgba(212,165,116,0.4)',
-    },
-    modalTitle: {
-        fontFamily: Fonts.Playfair.Bold,
-        fontSize: 28,
-        color: '#8b6f47',
-        marginBottom: 8,
-        textAlign: 'center',
-    },
-    modalSubtitle: {
-        fontFamily: Fonts.Cormorant.Regular,
-        fontSize: 16,
-        color: 'rgba(139,111,71,0.7)',
-        textAlign: 'center',
-        marginBottom: 24,
-    },
-    modalInput: {
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.3)',
-        borderRadius: 16,
-        padding: 16,
-        fontSize: 18,
-        color: '#8b6f47',
-        fontFamily: Fonts.Cormorant.Regular,
-        textAlign: 'center',
-        letterSpacing: 2,
-        marginBottom: 24,
-    },
-    modalButtons: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    modalCancelBtn: {
-        flex: 1,
-        padding: 16,
-        borderRadius: 16,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
-        alignItems: 'center',
-    },
-    modalCancelText: {
-        color: '#8b6f47',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    modalAddBtn: {
-        flex: 1,
-        borderRadius: 16,
-        overflow: 'hidden',
-    },
-    modalAddGradient: {
-        padding: 16,
-        alignItems: 'center',
-    },
-    modalAddText: {
-        color: '#1a1a2e',
-        fontSize: 16,
-        fontWeight: '700',
-    },
+    container: { flex: 1, backgroundColor: '#fff' },
+    scrollContent: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 120 },
+    header: { marginBottom: 50 },
+    backFab: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#f9f9f9', justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
+    title: { fontFamily: Fonts.Playfair.Bold, fontSize: 44, color: Colors.light.text, letterSpacing: -1 },
+    subtitle: { fontFamily: Fonts.Playfair.Bold, fontSize: 10, color: Colors.light.gold, letterSpacing: 4, marginTop: 8 },
+
+    // Empty State
+    emptyContainer: { flex: 1, height: height * 0.6, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
+    emptyIconBox: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#f9f9f9', justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
+    emptyTitle: { fontFamily: Fonts.Playfair.Bold, fontSize: 24, color: Colors.light.text, marginBottom: 16 },
+    emptySubtitle: { fontFamily: Fonts.Cormorant.Regular, fontSize: 17, color: Colors.light.textSecondary, textAlign: 'center', lineHeight: 26, marginBottom: 40 },
+    addBtnLarge: { backgroundColor: '#1a1a1a', paddingVertical: 18, paddingHorizontal: 40, borderRadius: 40 },
+    addBtnLargeText: { fontFamily: Fonts.Playfair.Bold, fontSize: 11, color: '#fff', letterSpacing: 2 },
+
+    // Grid
+    invitationGrid: { gap: 20 },
+    inviteCard: { backgroundColor: '#fff', borderRadius: 24, padding: 30, borderWidth: 1, borderColor: '#f0f0f0', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+    cardPreTitle: { fontFamily: Fonts.Playfair.Bold, fontSize: 9, color: Colors.light.gold, letterSpacing: 3, marginBottom: 12 },
+    cardTitle: { fontFamily: Fonts.Playfair.Bold, fontSize: 22, color: Colors.light.text, marginBottom: 20 },
+    cardFooter: { flexDirection: 'row', gap: 15 },
+    metaBox: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f9f9f9', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+    metaText: { fontFamily: Fonts.Playfair.Bold, fontSize: 10, color: Colors.light.textSecondary },
+    cardInfo: { flex: 1 },
+    removeBtn: { position: 'absolute', top: 20, right: 20, width: 30, height: 30, justifyContent: 'center', alignItems: 'center' },
+
+    fab: { position: 'absolute', bottom: 40, right: 30, width: 64, height: 64, borderRadius: 32, overflow: 'hidden', elevation: 10, shadowColor: Colors.light.gold, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.4, shadowRadius: 20 },
+    fabGradient: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+    // Modal
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
+    modalContent: { width: width - 48, backgroundColor: '#fff', padding: 32, borderRadius: 32 },
+    modalTitle: { fontFamily: Fonts.Playfair.Bold, fontSize: 26, color: Colors.light.text, textAlign: 'center', marginBottom: 12 },
+    modalSubtitle: { fontFamily: Fonts.Cormorant.Regular, fontSize: 16, color: Colors.light.textSecondary, textAlign: 'center', lineHeight: 24, marginBottom: 30 },
+    inputWrapper: { backgroundColor: '#f9f9f9', borderRadius: 20, marginBottom: 30 },
+    input: { height: 65, textAlign: 'center', fontFamily: Fonts.Playfair.Bold, fontSize: 22, letterSpacing: 4, color: Colors.light.text },
+    modalButtons: { flexDirection: 'row', gap: 12 },
+    cancelBtn: { flex: 1, paddingVertical: 18, alignItems: 'center' },
+    cancelText: { fontFamily: Fonts.Playfair.Bold, color: '#999', fontSize: 11, letterSpacing: 2 },
+    submitBtn: { flex: 2, borderRadius: 15, overflow: 'hidden' },
+    submitGradient: { paddingVertical: 18, alignItems: 'center' },
+    submitText: { fontFamily: Fonts.Playfair.Bold, color: '#fff', fontSize: 11, letterSpacing: 2 },
 });

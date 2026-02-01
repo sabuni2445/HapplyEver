@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useClerk } from "@clerk/clerk-react";
-import { Settings, LogOut, UserCheck, User, DollarSign, Users, MessageSquare, Calendar } from "lucide-react";
+import { Settings, LogOut, UserCheck, User, DollarSign, Users, MessageSquare, Calendar, Briefcase } from "lucide-react";
 
 export default function ManagerSidebar() {
   const navigate = useNavigate();
@@ -13,10 +13,10 @@ export default function ManagerSidebar() {
     { path: "/manager/dashboard", icon: UserCheck, label: "Dashboard" },
     { path: "/manager/wedding-management", icon: DollarSign, label: "Wedding Management" },
     { path: "/manager/team", icon: Users, label: "My Team" },
+    { path: "/manager/missions", icon: Briefcase, label: "Mission Tracking" },
     { path: "/manager/messages", icon: MessageSquare, label: "Messages" },
     { path: "/manager/schedule", icon: Calendar, label: "Schedule" },
     { path: "/manager/profile", icon: User, label: "Profile" },
-    { path: "/manager/settings", icon: Settings, label: "Settings" },
   ];
 
   const handleLogout = async () => {

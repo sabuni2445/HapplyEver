@@ -94,15 +94,7 @@ export default function TabLayout() {
         options={{
           title: 'Guests',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.2.fill" color={color} />,
-          href: role === 'COUPLE' ? '/(tabs)/guests' : null,
-        }}
-      />
-      <Tabs.Screen
-        name="protocol"
-        options={{
-          title: 'Protocol',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="checkmark.shield.fill" color={color} />,
-          href: role === 'PROTOCOL' ? '/(tabs)/protocol' : null,
+          href: role === 'COUPLE' ? '/guests' : null,
         }}
       />
       <Tabs.Screen
@@ -110,7 +102,7 @@ export default function TabLayout() {
         options={{
           title: role === 'VENDOR' ? 'My Services' : 'Vendor',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="briefcase.fill" color={color} />,
-          href: role === 'VENDOR' ? '/(tabs)/vendor' : null,
+          href: role === 'VENDOR' ? '/vendor' : null,
         }}
       />
       <Tabs.Screen
@@ -118,15 +110,31 @@ export default function TabLayout() {
         options={{
           title: 'Bookings',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="calendar.badge.clock" color={color} />,
-          href: role === 'VENDOR' ? '/(tabs)/bookings' : null,
+          href: role === 'VENDOR' ? '/bookings' : null,
         }}
       />
       <Tabs.Screen
-        name="attendee"
+        name="missions"
         options={{
-          title: 'Attendee',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="qrcode" color={color} />,
-          href: role === 'VENDOR' ? null : '/(tabs)/attendee',
+          title: 'Missions',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="checkmark.shield.fill" color={color} />,
+          href: role === 'PROTOCOL' ? '/missions' : null,
+        }}
+      />
+      <Tabs.Screen
+        name="messages"
+        options={{
+          title: 'Messages',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
+          href: (role === 'COUPLE' || role === 'PROTOCOL') ? '/messages' : null,
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'History',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="calendar.badge.clock" color={color} />,
+          href: role === 'PROTOCOL' ? '/history' : null,
         }}
       />
       <Tabs.Screen
@@ -137,10 +145,26 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="protocol"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="attendee"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="payments"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="explore"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="safari.fill" color={color} />,
           href: null,
         }}
       />

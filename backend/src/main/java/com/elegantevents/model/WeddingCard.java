@@ -63,6 +63,18 @@ public class WeddingCard {
     @Column(name = "overlay_opacity")
     private Double overlayOpacity;
     
+    @Column(name = "resize_mode")
+    private String resizeMode; // cover or contain
+    
+    @Column(name = "plate_type")
+    private String plateType; // GLASS, SOLID, NONE
+    
+    @Column(name = "plate_color")
+    private String plateColor;
+
+    @Column(name = "background_scale")
+    private Double backgroundScale;
+    
     @Column(name = "digital_card_enabled", nullable = false)
     private Boolean digitalCardEnabled = false;
     

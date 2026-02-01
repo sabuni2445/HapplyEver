@@ -12,6 +12,7 @@ import com.elegantevents.repository.WeddingCardRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Optional;
@@ -167,6 +168,15 @@ public class GuestService {
     public Guest getGuestByUniqueCode(String uniqueCode) {
         return guestRepository.findByUniqueCode(uniqueCode)
                 .orElseThrow(() -> new RuntimeException("Guest not found"));
+    }
+
+    @Transactional
+    public Guest checkInGuest(Long guestId) {
+        Guest guest = guestRepository.findById(guestId)
+                .orElseThrow(() -> new RuntimeException("Guest not found"));
+        guest.setCheckedIn(true);
+        guest.setCheckedInAt(LocalDateTime.now());
+        return guestRepository.save(guest);
     }
 }
 

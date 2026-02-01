@@ -46,10 +46,26 @@ public class GuestController {
         return ResponseEntity.ok(guests);
     }
     
+    @GetMapping("/wedding/{weddingId}")
+    public ResponseEntity<List<Guest>> getGuestsByWedding(@PathVariable Long weddingId) {
+        List<Guest> guests = guestService.getGuestsByWedding(weddingId);
+        return ResponseEntity.ok(guests);
+    }
+    
     @GetMapping("/code/{uniqueCode}")
     public ResponseEntity<Guest> getGuestByCode(@PathVariable String uniqueCode) {
         try {
             Guest guest = guestService.getGuestByUniqueCode(uniqueCode);
+            return ResponseEntity.ok(guest);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PatchMapping("/{guestId}/check-in")
+    public ResponseEntity<Guest> checkInGuest(@PathVariable Long guestId) {
+        try {
+            Guest guest = guestService.checkInGuest(guestId);
             return ResponseEntity.ok(guest);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();

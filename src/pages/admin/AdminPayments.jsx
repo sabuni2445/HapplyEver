@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import AdminSidebar from "../../components/AdminSidebar";
+import { getAllPayments, getAllWeddings } from "../../utils/api";
 import { CreditCard, Search, Calendar, DollarSign, CheckCircle, XCircle, Clock } from "lucide-react";
 import "./AdminDashboard.css";
 
@@ -40,15 +41,25 @@ export default function AdminPayments() {
             }
             setIsLoading(true);
             try {
-                // Mock data for now as we don't have a global payments endpoint yet
-                const mockPayments = [
-                    { id: 1, wedding: "Abebe & Sara", amount: 50000, status: "COMPLETED", date: "2023-10-15", method: "Chapa" },
-                    { id: 2, wedding: "Kebede & Tigist", amount: 25000, status: "PENDING", date: "2023-11-02", method: "Chapa" },
-                    { id: 3, wedding: "Samuel & Helen", amount: 75000, status: "COMPLETED", date: "2023-09-20", method: "Chapa" },
-                    { id: 4, wedding: "Dawit & Martha", amount: 15000, status: "FAILED", date: "2023-10-28", method: "Chapa" },
-                ];
-                setPayments(mockPayments);
-                setFilteredPayments(mockPayments);
+                const [paymentsData, weddingsData] = await Promise.all([
+                    getAllPayments(),
+                    getAllWeddings()
+                ]);
+
+                // Map wedding names to payments
+                const weddingMap = (weddingsData || []).reduce((acc, w) => {
+                    acc[w.id] = w.partnersName;
+                    return acc;
+                }, {});
+
+                const enrichedPayments = (paymentsData || []).map(p => ({
+                    ...p,
+                    weddingName: weddingMap[p.weddingId] || "Unknown Wedding",
+                    date: p.paidDate || p.createdAt
+                }));
+
+                setPayments(enrichedPayments);
+                setFilteredPayments(enrichedPayments);
             } catch (error) {
                 console.error("Failed to load payments:", error);
             } finally {
@@ -61,7 +72,7 @@ export default function AdminPayments() {
     useEffect(() => {
         if (searchTerm) {
             const filtered = payments.filter(payment =>
-                payment.wedding?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                payment.weddingName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 payment.status?.toLowerCase().includes(searchTerm.toLowerCase())
             );
             setFilteredPayments(filtered);
@@ -72,7 +83,7 @@ export default function AdminPayments() {
 
     const getStatusIcon = (status) => {
         switch (status) {
-            case "COMPLETED": return <CheckCircle size={14} color="#065f46" />;
+            case "PAID": return <CheckCircle size={14} color="#065f46" />;
             case "PENDING": return <Clock size={14} color="#92400e" />;
             case "FAILED": return <XCircle size={14} color="#991b1b" />;
             default: return null;
@@ -144,7 +155,7 @@ export default function AdminPayments() {
                                                 <td>
                                                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                                                         <CreditCard size={16} color="#d4af37" />
-                                                        <span>{payment.wedding}</span>
+                                                        <span>{payment.weddingName}</span>
                                                     </div>
                                                 </td>
                                                 <td>
@@ -159,7 +170,7 @@ export default function AdminPayments() {
                                                         <span>{new Date(payment.date).toLocaleDateString()}</span>
                                                     </div>
                                                 </td>
-                                                <td>{payment.method}</td>
+                                                <td>{payment.chapaReference ? "Chapa" : "Internal"}</td>
                                                 <td>
                                                     <div style={{
                                                         display: "flex",
@@ -169,8 +180,8 @@ export default function AdminPayments() {
                                                         borderRadius: "12px",
                                                         fontSize: "0.85rem",
                                                         fontWeight: "600",
-                                                        background: payment.status === "COMPLETED" ? "#d1fae5" : (payment.status === "PENDING" ? "#fef3c7" : "#fee2e2"),
-                                                        color: payment.status === "COMPLETED" ? "#065f46" : (payment.status === "PENDING" ? "#92400e" : "#991b1b"),
+                                                        background: payment.status === "PAID" ? "#d1fae5" : (payment.status === "PENDING" ? "#fef3c7" : "#fee2e2"),
+                                                        color: payment.status === "PAID" ? "#065f46" : (payment.status === "PENDING" ? "#92400e" : "#991b1b"),
                                                         width: "fit-content"
                                                     }}>
                                                         {getStatusIcon(payment.status)}

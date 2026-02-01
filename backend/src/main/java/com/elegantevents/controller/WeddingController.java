@@ -80,4 +80,23 @@ public class WeddingController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
         }
     }
+
+    @PatchMapping("/{weddingId}/status")
+    public ResponseEntity<Map<String, Object>> updateWeddingStatus(
+            @PathVariable Long weddingId,
+            @RequestBody Map<String, String> statusMap) {
+        try {
+            Wedding.WeddingStatus status = Wedding.WeddingStatus.valueOf(statusMap.get("status").toUpperCase());
+            Wedding wedding = weddingService.updateStatus(weddingId, status);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("wedding", wedding);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+    }
 }

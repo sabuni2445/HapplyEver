@@ -350,3 +350,170 @@
 .btn-icon:hover {
   transform: translateY(-2px);
 }
+
+.wedding-status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.wedding-scroll-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.wedding-scroll-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.wedding-scroll-list::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 3px;
+}
+
+.wedding-compact-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.2s;
+}
+
+.wedding-compact-item:hover {
+  background: #fdfaf2;
+}
+
+.wedding-compact-item:last-child {
+  border-bottom: none;
+}
+
+.w-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.w-name {
+  font-weight: 600;
+  color: #523c2b;
+}
+
+.w-date {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.status-dot.active {
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.status-dot.completed {
+  background: #3b82f6;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+}
+
+.count-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.count-badge.active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.count-badge.completed {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.empty-text {
+  text-align: center;
+  padding: 2rem;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Print Styles */
+@media print {
+
+  .no-print,
+  nav,
+  .admin-sidebar,
+  .dashboard-header.no-print {
+    display: none !important;
+  }
+
+  .dashboard-content {
+    margin-left: 0 !important;
+    padding: 0 !important;
+  }
+
+  .admin-dashboard {
+    background: white !important;
+    display: block !important;
+  }
+
+  .print-only-header {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #523c2b;
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .report-logo {
+    font-family: "Playfair Display", serif;
+    font-size: 2rem;
+    font-weight: 800;
+    color: #d4af37;
+  }
+
+  .report-title h1 {
+    font-size: 1.5rem;
+    margin: 0;
+    color: #523c2b;
+  }
+
+  .report-title p {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin: 4px 0 0 0;
+  }
+
+  .section-card {
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+    page-break-inside: avoid;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+
+  .stat-card {
+    border: 1px solid #e5e7eb !important;
+    box-shadow: none !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+.print-only-header {
+  display: none;
+}

@@ -2,11 +2,15 @@ package com.elegantevents.service;
 
 import com.elegantevents.model.MeetingRequest;
 import com.elegantevents.model.User;
+import com.elegantevents.model.WeddingAssignment;
 import com.elegantevents.repository.MeetingRequestRepository;
 import com.elegantevents.repository.UserRepository;
+import com.elegantevents.repository.WeddingAssignmentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
@@ -17,13 +21,16 @@ public class MeetingService {
 
     private final MeetingRequestRepository meetingRepository;
     private final UserRepository userRepository;
+    private final WeddingAssignmentRepository assignmentRepository;
     private final NotificationService notificationService;
 
     public MeetingService(MeetingRequestRepository meetingRepository, 
                           UserRepository userRepository,
+                          WeddingAssignmentRepository assignmentRepository,
                           NotificationService notificationService) {
         this.meetingRepository = meetingRepository;
         this.userRepository = userRepository;
+        this.assignmentRepository = assignmentRepository;
         this.notificationService = notificationService;
     }
 
@@ -31,14 +38,26 @@ public class MeetingService {
         User couple = userRepository.findById(coupleId)
                 .orElseThrow(() -> new RuntimeException("Couple not found with id: " + coupleId));
 
-        // Find a manager to assign (for now, assign the first available manager)
-        User manager = userRepository.findBySelectedRole(User.UserRole.MANAGER)
-                .stream().findFirst().orElse(null);
+        // Attempt to find the assigned manager for this couple
+        User manager = assignmentRepository.findByCoupleClerkId(couple.getClerkId())
+                .map(WeddingAssignment::getManagerClerkId)
+                .flatMap(userRepository::findByClerkId)
+                .orElseGet(() -> userRepository.findBySelectedRole(User.UserRole.MANAGER)
+                        .stream().findFirst().orElse(null));
 
         MeetingRequest meeting = new MeetingRequest();
         meeting.setCouple(couple);
         meeting.setManager(manager);
-        meeting.setMeetingTime(java.time.LocalDateTime.parse(meetingTimeStr));
+        
+        // Handle ISO-8601 date strings from mobile/frontend
+        LocalDateTime meetingTime;
+        try {
+            meetingTime = OffsetDateTime.parse(meetingTimeStr).toLocalDateTime();
+        } catch (Exception e) {
+            // Fallback for simpler formats if necessary
+            meetingTime = LocalDateTime.parse(meetingTimeStr);
+        }
+        meeting.setMeetingTime(meetingTime);
         meeting.setPurpose(purpose);
         meeting.setStatus(MeetingRequest.MeetingStatus.APPROVED); // Automatically approve for now per user request
 
@@ -84,7 +103,14 @@ public class MeetingService {
         MeetingRequest meeting = new MeetingRequest();
         meeting.setCouple(couple);
         meeting.setManager(manager);
-        meeting.setMeetingTime(java.time.LocalDateTime.parse(meetingTimeStr));
+        
+        LocalDateTime meetingTime;
+        try {
+            meetingTime = OffsetDateTime.parse(meetingTimeStr).toLocalDateTime();
+        } catch (Exception e) {
+            meetingTime = LocalDateTime.parse(meetingTimeStr);
+        }
+        meeting.setMeetingTime(meetingTime);
         meeting.setPurpose(purpose);
         meeting.setStatus(MeetingRequest.MeetingStatus.PENDING);
         meeting.setInitiator("MANAGER");

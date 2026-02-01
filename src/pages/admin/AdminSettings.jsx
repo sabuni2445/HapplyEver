@@ -1,25 +1,31 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import AdminSidebar from "../../components/AdminSidebar";
-import { getUserFromDatabase, updateUserProfile } from "../../utils/api";
-import { Save, User, Mail, Phone } from "lucide-react";
+import { getUserFromDatabase, updateUserProfile, getAdminAnalytics } from "../../utils/api";
+import {
+  Save, User, Mail, Phone, Upload, ShieldCheck,
+  TrendingUp, Users, Star, Zap, Activity
+} from "lucide-react";
 import "./AdminDashboard.css";
+import "../common/Profile.css";
 
 export default function AdminSettings() {
-  const { userId: clerkUserId, user: clerkUser } = useAuth();
+  const { userId: clerkUserId } = useAuth();
+  const { user: clerkUser } = useUser();
   const [userId, setUserId] = useState(null);
-  const [dbUser, setDbUser] = useState(null);
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [analytics, setAnalytics] = useState({ revenue: 0, users: 0, weddings: 0 });
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     phoneNumber: "",
     imageUrl: ""
   });
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
 
   useEffect(() => {
-    // Check for DB-based login user in localStorage
     const dbUserStr = localStorage.getItem("dbUser");
     if (dbUserStr) {
       try {
@@ -32,175 +38,128 @@ export default function AdminSettings() {
         console.error("Failed to parse dbUser:", e);
       }
     }
-    // Fallback to Clerk userId
-    if (clerkUserId) {
-      setUserId(clerkUserId);
-    }
+    if (clerkUserId) setUserId(clerkUserId);
   }, [clerkUserId]);
 
   useEffect(() => {
     if (userId) {
-      loadUserData();
+      const loadAll = async () => {
+        setIsLoading(true);
+        try {
+          const [userData, analyticsData] = await Promise.all([
+            getUserFromDatabase(userId),
+            getAdminAnalytics()
+          ]);
+          setUser(userData);
+          setAnalytics({
+            revenue: analyticsData.totalRevenue,
+            users: analyticsData.totalUsers,
+            weddings: analyticsData.totalWeddings
+          });
+          setFormData({
+            firstName: userData.firstName || clerkUser?.firstName || "",
+            lastName: userData.lastName || clerkUser?.lastName || "",
+            phoneNumber: userData.phoneNumber || "",
+            imageUrl: userData.imageUrl || clerkUser?.imageUrl || ""
+          });
+          setImagePreview(userData.imageUrl || clerkUser?.imageUrl);
+        } catch (e) { console.log(e); }
+        finally { setIsLoading(false); }
+      };
+      loadAll();
     }
-  }, [userId]);
+  }, [userId, clerkUser]);
 
-  const loadUserData = async () => {
-    if (!userId) return;
-    try {
-      const userData = await getUserFromDatabase(userId);
-      setDbUser(userData);
-      setFormData({
-        firstName: userData.firstName || clerkUser?.firstName || "",
-        lastName: userData.lastName || clerkUser?.lastName || "",
-        phoneNumber: userData.phoneNumber || "",
-        imageUrl: userData.imageUrl || clerkUser?.imageUrl || ""
-      });
-    } catch (error) {
-      console.error("Failed to load user data:", error);
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+        setFormData({ ...formData, imageUrl: reader.result });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!userId) return;
-
     setIsSaving(true);
-    setSaveSuccess(false);
     try {
       await updateUserProfile(userId, formData);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-      loadUserData();
-    } catch (error) {
-      alert("Failed to update profile: " + (error.response?.data?.error || error.message));
-    } finally {
-      setIsSaving(false);
-    }
+      alert("Platform Identity Updated!");
+    } catch (e) { alert("Error: " + e.message); }
+    finally { setIsSaving(false); }
   };
+
+  if (isLoading) return <div className="admin-dashboard"><AdminSidebar /><div className="dashboard-content"><div className="loading-spinner"></div></div></div>;
 
   return (
     <div className="admin-dashboard">
       <AdminSidebar />
       <div className="dashboard-content">
-        <div className="content-wrapper">
-          <h1 className="page-title">Settings</h1>
-
-          <div className="section-card">
-            <h2>Profile Settings</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>
-                  <User size={18} />
-                  First Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>
-                  <User size={18} />
-                  Last Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>
-                  <Mail size={18} />
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={dbUser?.email || clerkUser?.emailAddresses[0]?.emailAddress || ""}
-                  disabled
-                  style={{ background: "#f3f4f6", cursor: "not-allowed" }}
-                />
-                <small style={{ color: "#6b7280", fontSize: "0.85rem" }}>
-                  Email cannot be changed
-                </small>
-              </div>
-
-              <div className="form-group">
-                <label>
-                  <Phone size={18} />
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phoneNumber}
-                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Profile Image URL</label>
-                <input
-                  type="text"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  placeholder="https://..."
-                />
-              </div>
-
-              {formData.imageUrl && (
-                <div style={{ marginBottom: "1rem" }}>
-                  <img
-                    src={formData.imageUrl}
-                    alt="Profile Preview"
-                    style={{
-                      width: "100px",
-                      height: "100px",
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                      border: "2px solid #d4af37"
-                    }}
-                    onError={(e) => {
-                      e.target.style.display = "none";
-                    }}
-                  />
+        <div className="content-wrapper profile-main-content">
+          <div className="profile-container" style={{ maxWidth: "1100px", margin: "0 auto" }}>
+            <div className="profile-header" style={{ marginBottom: "2rem" }}>
+              <div className="header-with-badge" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "3.5rem", color: "#d4af37", margin: 0 }}>Settings</h1>
+                <div className="admin-badge" style={{ alignSelf: "center" }}>
+                  <ShieldCheck size={20} />
+                  <span>System Administrator</span>
                 </div>
-              )}
-
-              {saveSuccess && (
-                <div style={{
-                  padding: "1rem",
-                  background: "#d1fae5",
-                  color: "#065f46",
-                  borderRadius: "8px",
-                  marginBottom: "1rem"
-                }}>
-                  Profile updated successfully!
-                </div>
-              )}
-
-              <div className="form-actions">
-                <button type="submit" className="btn-primary" disabled={isSaving}>
-                  <Save size={18} />
-                  {isSaving ? "Saving..." : "Save Changes"}
-                </button>
               </div>
-            </form>
+            </div>
+
+
+            <div className="section-card" style={{ padding: "3rem", borderRadius: "30px", marginTop: "3rem" }}>
+              <h2 style={{ fontSize: "2rem", marginBottom: "2.5rem" }}>Identity Management</h2>
+
+              <form onSubmit={handleSubmit} className="profile-form">
+                <div className="profile-image-section" style={{ marginBottom: "3rem", display: "flex", justifyContent: "center" }}>
+                  <div className="image-upload-area" style={{ width: "180px", height: "180px" }}>
+                    {imagePreview ? (
+                      <img src={imagePreview} alt="Admin" className="profile-image-preview" />
+                    ) : (
+                      <div className="profile-image-placeholder"><User size={80} /></div>
+                    )}
+                    <label className="image-upload-btn" style={{ bottom: "-10px", right: "-10px" }}>
+                      <Upload size={20} />
+                      <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="form-grid" style={{ gap: "2.5rem" }}>
+                  <div className="form-group">
+                    <label style={{ color: "#d4af37", fontWeight: "700" }}><User size={16} /> FIRST NAME</label>
+                    <input type="text" className="form-input" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} required />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ color: "#d4af37", fontWeight: "700" }}><User size={16} /> LAST NAME</label>
+                    <input type="text" className="form-input" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ color: "#d4af37", fontWeight: "700" }}><Mail size={16} /> ADMINISTRATIVE EMAIL</label>
+                    <input type="email" className="form-input" value={user?.email || clerkUser?.emailAddresses?.[0]?.emailAddress || ""} disabled style={{ background: "#fdf6f0", cursor: "not-allowed", border: "2px dashed rgba(212, 175, 55, 0.2)" }} />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ color: "#d4af37", fontWeight: "700" }}><Phone size={16} /> SUPPORT HOTLINE</label>
+                    <input type="tel" className="form-input" value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} placeholder="+251 ..." />
+                  </div>
+                </div>
+
+                <div className="form-actions" style={{ marginTop: "3rem" }}>
+                  <button type="submit" className="btn-primary" disabled={isSaving} style={{ height: "60px", fontSize: "1.2rem" }}>
+                    <Save size={24} />
+                    {isSaving ? "Updating Platform..." : "Save Identity Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
