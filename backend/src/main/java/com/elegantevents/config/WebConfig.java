@@ -19,7 +19,7 @@ public class WebConfig implements WebMvcConfigurer {
                     "http://localhost:8081", 
                     "exp://localhost:19000", 
                     "http://localhost:3000",
-                    "https://happily-ever.vercel.app",
+                    "https://happly-ever.vercel.app",
                     frontendUrl
                 )
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
