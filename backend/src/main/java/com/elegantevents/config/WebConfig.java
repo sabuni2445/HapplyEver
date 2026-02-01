@@ -13,9 +13,15 @@ public class WebConfig implements WebMvcConfigurer {
     
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**") // Changed from /api/** to catch everything
-                .allowedOrigins("http://localhost:5173", "http://localhost:8081", "exp://localhost:19000", "http://localhost:3000") // Explicit origins
-                .allowedOriginPatterns("http://*", "https://*", "exp://*") // Fallback for dynamic
+        registry.addMapping("/**")
+                .allowedOrigins(
+                    "http://localhost:5173", 
+                    "http://localhost:8081", 
+                    "exp://localhost:19000", 
+                    "http://localhost:3000",
+                    "https://happily-ever.vercel.app",
+                    frontendUrl
+                )
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)
