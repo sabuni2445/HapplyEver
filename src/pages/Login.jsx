@@ -79,11 +79,6 @@ export default function Login() {
               ))}
             </div>
 
-            <div className="brand-decoration">
-              <div className="decoration-circle circle-1"></div>
-              <div className="decoration-circle circle-2"></div>
-              <div className="decoration-circle circle-3"></div>
-            </div>
           </div>
         </div>
 
