@@ -19,7 +19,8 @@ public class SimpleCorsFilter implements Filter {
         HttpServletRequest request = (HttpServletRequest) req;
         String origin = request.getHeader("Origin");
 
-        // Extremely aggressive CORS: Allow any origin that asks
+        System.out.println("CORS FILTER TRIGGERED - Origin: " + origin + " - Method: " + request.getMethod());
+
         if (origin != null) {
             response.setHeader("Access-Control-Allow-Origin", origin);
         } else {
@@ -28,8 +29,9 @@ public class SimpleCorsFilter implements Filter {
 
         response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT, PATCH");
         response.setHeader("Access-Control-Max-Age", "3600");
-        response.setHeader("Access-Control-Allow-Headers", "x-requested-with, authorization, Content-Type, Authorization, credential, X-XSRF-TOKEN");
+        response.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, clerk-db-jwt, x-clerk-auth-token");
         response.setHeader("Access-Control-Allow-Credentials", "true");
+        response.setHeader("Access-Control-Expose-Headers", "Authorization");
 
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             response.setStatus(HttpServletResponse.SC_OK);
