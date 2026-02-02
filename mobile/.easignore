@@ -1,0 +1,16 @@
+
+# Valid entries are patterns as per .gitignore syntax
+
+# Ignore git
+.git/
+
+# Ignore node_modules
+node_modules/
+
+# Ignore platform builds
+android/
+ios/
+
+# Ignore build artifacts
+dist/
+web-build/
