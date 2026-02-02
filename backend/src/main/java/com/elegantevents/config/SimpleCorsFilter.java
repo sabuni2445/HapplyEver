@@ -19,11 +19,10 @@ public class SimpleCorsFilter implements Filter {
         HttpServletRequest request = (HttpServletRequest) req;
         String origin = request.getHeader("Origin");
 
-        // Allow all Vercel, Railway, and localhost origins
-        if (origin != null && (origin.contains("vercel.app") || origin.contains("railway.app") || origin.contains("localhost"))) {
+        // Extremely aggressive CORS: Allow any origin that asks
+        if (origin != null) {
             response.setHeader("Access-Control-Allow-Origin", origin);
-        } else if (origin == null) {
-            // For mobile apps or non-browser requests
+        } else {
             response.setHeader("Access-Control-Allow-Origin", "*");
         }
 
