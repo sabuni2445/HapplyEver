@@ -1,0 +1,11 @@
+
+# Root .easignore
+backend/
+.git/
+node_modules/
+src/
+public/
+*.md
+.gitignore
+railway.json
+nixpacks.toml

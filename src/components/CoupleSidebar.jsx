@@ -22,7 +22,14 @@ export default function CoupleSidebar() {
   ];
 
   const handleLogout = async () => {
-    await signOut();
+    try {
+      await signOut();
+    } catch (e) {
+      console.log("Clerk signout skipped or failed");
+    }
+    localStorage.removeItem("dbUser");
+    localStorage.removeItem("selectedRole");
+    localStorage.removeItem("dbAuthToken");
     navigate("/");
   };
 
@@ -32,45 +39,62 @@ export default function CoupleSidebar() {
       top: 0,
       left: 0,
       bottom: 0,
-      width: "260px",
-      backgroundColor: "#ffffff",
-      borderRight: "1px solid rgba(212, 175, 55, 0.2)",
+      width: "280px",
+      // Transparent to blend with main background
+      backgroundColor: "transparent",
       display: "flex",
       flexDirection: "column",
       zIndex: 9999,
-      boxShadow: "4px 0 24px rgba(0, 0, 0, 0.02)"
+      padding: "24px"
     }}>
       <div style={{
-        padding: "32px 24px",
-        borderBottom: "1px solid rgba(212, 175, 55, 0.08)",
-        background: "#ffffff"
+        padding: "0 12px 32px 12px",
       }}>
         <h2 style={{
           fontFamily: "'Playfair Display', serif",
-          fontSize: "26px",
+          fontSize: "28px",
           color: "#d4af37",
-          margin: 0,
+          margin: "0 0 12px 0",
           fontWeight: "800",
-          letterSpacing: "-0.5px"
+          letterSpacing: "-0.5px",
+          display: "flex",
+          alignItems: "center",
+          gap: "12px"
         }}>
           ElegantEvents
         </h2>
+        <div style={{
+          display: "inline-block",
+          padding: "6px 16px",
+          backgroundColor: "rgba(255, 255, 255, 0.5)",
+          borderRadius: "20px",
+          border: "1px solid rgba(212, 175, 55, 0.2)",
+          backdropFilter: "blur(10px)"
+        }}>
+          <span style={{
+            color: "#d4af37",
+            fontSize: "12px",
+            fontWeight: "700",
+            textTransform: "uppercase",
+            letterSpacing: "1px"
+          }}>
+            Couple
+          </span>
+        </div>
       </div>
 
       <div style={{
         flex: 1,
-        padding: "20px 16px",
-        overflowY: "auto",
         display: "flex",
         flexDirection: "column",
         gap: "6px",
-        background: "#ffffff"
+        overflowY: "auto",
+        paddingRight: "4px"
       }}>
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
           const isHovered = hoveredPath === item.path;
-          const currentColor = isActive ? "#ffffff" : (isHovered ? "#d4af37" : "#523c2b");
 
           return (
             <div
@@ -82,39 +106,34 @@ export default function CoupleSidebar() {
                 display: "flex",
                 alignItems: "center",
                 padding: "12px 16px",
-                borderRadius: "12px",
+                borderRadius: "16px",
                 cursor: "pointer",
                 backgroundColor: isActive
                   ? "#d4af37"
-                  : (isHovered ? "#fdf6f0" : "transparent"),
-                color: currentColor,
-                transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-                transform: isHovered && !isActive ? "translateX(5px)" : "none",
-                boxShadow: isActive ? "0 4px 15px rgba(212, 175, 55, 0.25)" : "none",
-                visibility: "visible",
-                opacity: 1
+                  : (isHovered ? "rgba(255, 255, 255, 0.6)" : "transparent"),
+                color: isActive ? "#ffffff" : "#523c2b",
+                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                transform: isHovered && !isActive ? "translateX(4px)" : "none",
+                boxShadow: isActive
+                  ? "0 10px 25px -5px rgba(212, 175, 55, 0.4)"
+                  : (isHovered ? "0 4px 12px rgba(0,0,0,0.05)" : "none"),
+                position: "relative",
               }}
             >
               <Icon
                 size={20}
-                color={currentColor}
+                strokeWidth={isActive ? 2.5 : 2}
                 style={{
                   minWidth: "20px",
-                  transition: "all 0.25s ease",
-                  display: "inline-block",
-                  visibility: "visible",
-                  opacity: 1
+                  transition: "all 0.3s ease",
                 }}
               />
               <span style={{
-                marginLeft: "12px",
-                fontSize: "15px",
+                marginLeft: "14px",
+                fontSize: "14px",
                 fontWeight: isActive ? "600" : "500",
                 fontFamily: "'Montserrat', sans-serif",
-                display: "block",
-                visibility: "visible",
-                opacity: 1,
-                color: "inherit"
+                letterSpacing: "0.3px"
               }}>
                 {item.label}
               </span>
@@ -123,17 +142,17 @@ export default function CoupleSidebar() {
         })}
       </div>
 
-      <div style={{ padding: "24px 16px", borderTop: "1px solid rgba(212, 175, 55, 0.08)" }}>
+      <div style={{ paddingTop: "24px" }}>
         <button
           onClick={handleLogout}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "#ef4444";
-            e.currentTarget.style.color = "#ffffff";
+            e.currentTarget.style.backgroundColor = "#fff";
+            e.currentTarget.style.color = "#ef4444";
             e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.2)";
+            e.currentTarget.style.boxShadow = "0 8px 20px rgba(239, 68, 68, 0.15)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "#fff1f2";
+            e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.4)";
             e.currentTarget.style.color = "#ef4444";
             e.currentTarget.style.transform = "none";
             e.currentTarget.style.boxShadow = "none";
@@ -144,16 +163,17 @@ export default function CoupleSidebar() {
             justifyContent: "center",
             gap: "12px",
             width: "100%",
-            padding: "12px 16px",
-            backgroundColor: "#fff1f2",
+            padding: "14px 16px",
+            backgroundColor: "rgba(255, 255, 255, 0.4)",
             color: "#ef4444",
-            border: "1px solid #fee2e2",
-            borderRadius: "12px",
+            border: "1px solid rgba(239, 68, 68, 0.1)",
+            borderRadius: "16px",
             fontSize: "15px",
             fontWeight: "600",
             fontFamily: "'Montserrat', sans-serif",
             cursor: "pointer",
-            transition: "all 0.2s ease"
+            transition: "all 0.3s ease",
+            backdropFilter: "blur(10px)"
           }}
         >
           <LogOut size={20} />
